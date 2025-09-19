@@ -1,4 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import Map, {
+  Marker,
+  Popup,
+  Source,
+  Layer,
+  NavigationControl,
+  GeolocateControl,
+} from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import {
   Home,
   User,
@@ -14,6 +23,13 @@ import {
   TrendingDown,
   AlertTriangle,
   Send,
+  Upload,
+  LogOut,
+  MapPin,
+  Layers,
+  Satellite,
+  CheckCircle,
+  Shield,
 } from "lucide-react";
 import {
   LineChart,
@@ -28,192 +44,1030 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
 } from "recharts";
 import "./index.css";
 
-const Dashboard = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("home");
-  const [chatMessages, setChatMessages] = useState([
+// API Configuration
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
+
+// ...existing API helper functions...
+const api = {
+  // Auth endpoints
+  login: async (email, password) => {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    return await response.json();
+  },
+
+  register: async (userData) => {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(userData),
+    });
+    return await response.json();
+  },
+
+  // Chat endpoints
+  sendMessage: async (message, sessionId, token) => {
+    const response = await fetch(`${API_BASE_URL}/chat/message`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ message, sessionId }),
+    });
+    return await response.json();
+  },
+
+  getChatHistory: async (token, page = 1) => {
+    const response = await fetch(`${API_BASE_URL}/chat/history?page=${page}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return await response.json();
+  },
+
+  // Disease endpoints
+  predictDisease: async (formData, token) => {
+    const response = await fetch(`${API_BASE_URL}/diseases/predict`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    return await response.json();
+  },
+
+  getDiseaseHistory: async (token, page = 1) => {
+    const response = await fetch(
+      `${API_BASE_URL}/diseases/history?page=${page}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return await response.json();
+  },
+
+  getDiseaseTrends: async (token, timeframe = "30d") => {
+    const response = await fetch(
+      `${API_BASE_URL}/diseases/trends?timeframe=${timeframe}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return await response.json();
+  },
+
+  // Weather endpoints
+  getCurrentWeather: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/weather/current`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return await response.json();
+  },
+
+  // Treatment endpoints
+  getTreatmentRecommendations: async (token, disease, crop) => {
+    const params = new URLSearchParams();
+    if (disease) params.append("disease", disease);
+    if (crop) params.append("crop", crop);
+
+    const response = await fetch(
+      `${API_BASE_URL}/treatments/recommendations?${params}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    return await response.json();
+  },
+
+  // User endpoints
+  getUserProfile: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/farmers/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return await response.json();
+  },
+
+  getUserStats: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/auth/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return await response.json();
+  },
+};
+
+// Login Component (same as before)
+const LoginForm = ({ onLogin }) => {
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    name: "",
+    phone: "",
+    farmName: "",
+    location: "",
+    farmSize: "",
+    cropType: "",
+    soilType: "",
+  });
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    // Frontend validation for registration
+    if (isRegistering) {
+      if (!formData.name || formData.name.trim().length < 2) {
+        setError("Name must be at least 2 characters long");
+        setLoading(false);
+        return;
+      }
+      if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
+        setError("Please enter a valid email address");
+        setLoading(false);
+        return;
+      }
+      if (!formData.password || formData.password.length < 6) {
+        setError("Password must be at least 6 characters long");
+        setLoading(false);
+        return;
+      }
+      if (!/^(?=.*[A-Za-z])(?=.*\d)/.test(formData.password)) {
+        setError("Password must contain at least one letter and one number");
+        setLoading(false);
+        return;
+      }
+      if (!formData.location || formData.location.trim().length < 3) {
+        setError("Please enter your farm location (City, State)");
+        setLoading(false);
+        return;
+      }
+      if (!formData.farmSize || parseFloat(formData.farmSize) <= 0) {
+        setError("Please enter a valid farm size");
+        setLoading(false);
+        return;
+      }
+      if (!formData.cropType) {
+        setError("Please select a crop type");
+        setLoading(false);
+        return;
+      }
+      if (!formData.soilType) {
+        setError("Please select a soil type");
+        setLoading(false);
+        return;
+      }
+    }
+
+    try {
+      let result;
+      if (isRegistering) {
+        // Geocode location for registration
+        let coordinates = { latitude: 0, longitude: 0 };
+        if (formData.location) {
+          try {
+            const geocodeResponse = await fetch(
+              `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+                formData.location
+              )}.json?access_token=${MAPBOX_TOKEN}&country=IN&types=place,locality`
+            );
+            const geocodeData = await geocodeResponse.json();
+
+            if (geocodeData.features && geocodeData.features.length > 0) {
+              const [lng, lat] = geocodeData.features[0].center;
+              coordinates = { longitude: lng, latitude: lat };
+            }
+          } catch (geocodeError) {
+            console.error("Geocoding failed:", geocodeError);
+            // Continue with registration even if geocoding fails
+          }
+        }
+
+        // Parse location into city and state
+        const locationParts = formData.location
+          ? formData.location.split(",").map((part) => part.trim())
+          : ["", ""];
+        const city = locationParts[0] || "";
+        const state = locationParts[1] || "";
+
+        // Prepare registration data
+        const registrationData = {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone,
+          farmDetails: {
+            farmName: formData.farmName || `${formData.name}'s Farm`,
+            location: {
+              city: city,
+              state: state,
+              coordinates: coordinates,
+            },
+            farmSize: {
+              value: parseFloat(formData.farmSize) || 1,
+              unit: "acres",
+            },
+            soilType: formData.soilType || "Loamy",
+            cropTypes: [
+              {
+                name: (formData.cropType || "wheat").toLowerCase(),
+                variety: "HD-2967",
+                plantingDate: new Date(),
+                expectedHarvestDate: new Date(
+                  Date.now() + 90 * 24 * 60 * 60 * 1000
+                ),
+                area: parseFloat(formData.farmSize) || 1,
+              },
+            ],
+          },
+        };
+
+        console.log(
+          "Registration data being sent:",
+          JSON.stringify(registrationData, null, 2)
+        );
+        result = await api.register(registrationData);
+      } else {
+        result = await api.login(formData.email, formData.password);
+      }
+
+      if (result.success) {
+        localStorage.setItem("vriddhi_token", result.data.token);
+        localStorage.setItem("vriddhi_user", JSON.stringify(result.data.user));
+        onLogin(result.data.token, result.data.user);
+      } else {
+        console.error("Registration/Login failed:", result);
+        setError(result.message || "Authentication failed");
+
+        // Show validation errors if they exist
+        if (result.errors && Array.isArray(result.errors)) {
+          const errorMessages = result.errors.map((err) => err.msg).join(", ");
+          setError(`Validation errors: ${errorMessages}`);
+        }
+      }
+    } catch (err) {
+      console.error("Auth error:", err);
+      setError(`Network error: ${err.message || "Please try again."}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
+          <h1>🌾 Vriddhi</h1>
+          <h2>{isRegistering ? "Create Account" : "Welcome Back"}</h2>
+        </div>
+
+        {error && <div className="error-message">{error}</div>}
+
+        <form onSubmit={handleSubmit} className="login-form">
+          {isRegistering && (
+            <input
+              type="text"
+              placeholder="Full Name"
+              value={formData.name || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              required
+            />
+          )}
+
+          <input
+            type="email"
+            placeholder="Email Address"
+            value={formData.email}
+            onChange={(e) =>
+              setFormData({ ...formData, email: e.target.value })
+            }
+            required
+          />
+
+          <input
+            type="password"
+            placeholder={
+              isRegistering
+                ? "Password (min 6 chars, include letter & number)"
+                : "Password"
+            }
+            value={formData.password}
+            onChange={(e) =>
+              setFormData({ ...formData, password: e.target.value })
+            }
+            required
+          />
+
+          {isRegistering && (
+            <>
+              <input
+                type="tel"
+                placeholder="Phone Number"
+                value={formData.phone || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+              />
+              <input
+                type="text"
+                placeholder="Farm Name (optional)"
+                value={formData.farmName || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, farmName: e.target.value })
+                }
+              />
+              <input
+                type="text"
+                placeholder="Farm Location (City, State) *"
+                value={formData.location || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, location: e.target.value })
+                }
+                required
+              />
+              <input
+                type="number"
+                placeholder="Farm Size (acres) *"
+                value={formData.farmSize || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, farmSize: e.target.value })
+                }
+                min="0.1"
+                step="0.1"
+                required
+              />
+              <select
+                value={formData.cropType || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, cropType: e.target.value })
+                }
+                className="form-select"
+                required
+              >
+                <option value="">Select Primary Crop *</option>
+                <option value="wheat">Wheat</option>
+                <option value="rice">Rice</option>
+                <option value="corn">Corn</option>
+                <option value="barley">Barley</option>
+                <option value="sugarcane">Sugarcane</option>
+                <option value="cotton">Cotton</option>
+                <option value="soybean">Soybean</option>
+              </select>
+              <select
+                value={formData.soilType || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, soilType: e.target.value })
+                }
+                className="form-select"
+                required
+              >
+                <option value="">Select Soil Type *</option>
+                <option value="Clay">Clay Soil</option>
+                <option value="Sandy">Sandy Soil</option>
+                <option value="Loamy">Loamy Soil</option>
+                <option value="Silt">Silt Soil</option>
+                <option value="Chalky">Chalky Soil</option>
+                <option value="Peaty">Peaty Soil</option>
+                <option value="Other">Other</option>
+              </select>
+            </>
+          )}
+
+          <button type="submit" disabled={loading} className="login-btn">
+            {loading
+              ? "Please wait..."
+              : isRegistering
+              ? "Create Account"
+              : "Sign In"}
+          </button>
+        </form>
+
+        <div className="login-footer">
+          <button
+            onClick={() => {
+              setIsRegistering(!isRegistering);
+              setFormData({
+                email: "",
+                password: "",
+                name: "",
+                phone: "",
+                farmName: "",
+                location: "",
+                farmSize: "",
+                cropType: "",
+                soilType: "",
+              });
+              setError("");
+            }}
+            className="toggle-auth"
+          >
+            {isRegistering
+              ? "Already have an account? Sign In"
+              : "New to Vriddhi? Create Account"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Farm Map Component
+const FarmMap = ({ user, diseaseData, weatherData }) => {
+  const [viewState, setViewState] = useState({
+    longitude: 77.209, // Default to Delhi
+    latitude: 28.6139,
+    zoom: 10,
+  });
+  const [selectedMarker, setSelectedMarker] = useState(null);
+  const [mapStyle, setMapStyle] = useState(
+    "mapbox://styles/mapbox/satellite-streets-v12"
+  );
+  const mapRef = useRef();
+
+  // Geocoding function to get coordinates from location name
+  const geocodeLocation = async (locationString) => {
+    if (!locationString) return null;
+
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+          locationString
+        )}.json?access_token=${MAPBOX_TOKEN}&country=IN&types=place,locality`
+      );
+      const data = await response.json();
+
+      if (data.features && data.features.length > 0) {
+        const [lng, lat] = data.features[0].center;
+        return { longitude: lng, latitude: lat };
+      }
+    } catch (error) {
+      console.error("Geocoding error:", error);
+    }
+    return null;
+  };
+
+  // Update map location based on user's farm location
+  useEffect(() => {
+    const updateMapLocation = async () => {
+      if (user?.farmDetails?.location?.city) {
+        const locationString = user.farmDetails.location.state
+          ? `${user.farmDetails.location.city}, ${user.farmDetails.location.state}, India`
+          : `${user.farmDetails.location.city}, India`;
+
+        const coordinates = await geocodeLocation(locationString);
+
+        if (coordinates) {
+          setViewState((prev) => ({
+            ...prev,
+            longitude: coordinates.longitude,
+            latitude: coordinates.latitude,
+            zoom: 12,
+          }));
+        }
+      }
+    };
+
+    updateMapLocation();
+  }, [user]);
+
+  // Get user's farm coordinates for markers
+  const getUserFarmCoordinates = () => {
+    if (
+      user?.farmDetails?.location?.coordinates?.latitude &&
+      user?.farmDetails?.location?.coordinates?.longitude
+    ) {
+      return [
+        user.farmDetails.location.coordinates.longitude,
+        user.farmDetails.location.coordinates.latitude,
+      ];
+    }
+    // Use current viewState if coordinates not saved
+    return [viewState.longitude, viewState.latitude];
+  };
+
+  // Sample farm locations and disease data
+  const farmLocations = [
     {
       id: 1,
-      type: "bot",
-      message:
-        "Hello! I'm your agricultural assistant. How can I help you today?",
-      timestamp: new Date(),
+      name: user?.farmDetails?.farmName || "Main Farm",
+      coordinates: getUserFarmCoordinates(),
+      size: user?.farmDetails?.farmSize?.value || 5,
+      crop: user?.farmDetails?.cropTypes?.[0]?.name || "Wheat",
+      health: 87,
+      diseases: 2,
+      lastInspection: "2024-01-15",
+      location: user?.farmDetails?.location?.city || "Farm Location",
     },
-  ]);
+    {
+      id: 2,
+      name: "North Field",
+      coordinates: [77.218, 28.62],
+      size: 3,
+      crop: "Rice",
+      health: 92,
+      diseases: 0,
+      lastInspection: "2024-01-14",
+    },
+    {
+      id: 3,
+      name: "South Field",
+      coordinates: [77.2, 28.608],
+      size: 4,
+      crop: "Corn",
+      health: 78,
+      diseases: 1,
+      lastInspection: "2024-01-13",
+    },
+  ];
+
+  // Disease markers
+  const diseaseMarkers = [
+    {
+      id: 1,
+      coordinates: [77.21, 28.615],
+      disease: "Leaf Rust",
+      severity: "Medium",
+      detectedDate: "2024-01-15",
+    },
+    {
+      id: 2,
+      coordinates: [77.205, 28.612],
+      disease: "Brown Spot",
+      severity: "Low",
+      detectedDate: "2024-01-14",
+    },
+  ];
+
+  // Weather stations
+  const weatherStations = [
+    {
+      id: 1,
+      coordinates: [77.22, 28.625],
+      temperature: weatherData?.temperature || 25,
+      humidity: weatherData?.humidity || 65,
+      rainfall: 0,
+    },
+  ];
+
+  // GeoJSON for farm boundaries
+  const farmBoundaries = {
+    type: "FeatureCollection",
+    features: farmLocations.map((farm) => ({
+      type: "Feature",
+      properties: {
+        id: farm.id,
+        name: farm.name,
+        health: farm.health,
+      },
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [farm.coordinates[0] - 0.005, farm.coordinates[1] - 0.005],
+            [farm.coordinates[0] + 0.005, farm.coordinates[1] - 0.005],
+            [farm.coordinates[0] + 0.005, farm.coordinates[1] + 0.005],
+            [farm.coordinates[0] - 0.005, farm.coordinates[1] + 0.005],
+            [farm.coordinates[0] - 0.005, farm.coordinates[1] - 0.005],
+          ],
+        ],
+      },
+    })),
+  };
+
+  // Layer style for farm boundaries
+  const farmBoundaryLayer = {
+    id: "farm-boundaries",
+    type: "fill",
+    paint: {
+      "fill-color": [
+        "case",
+        [">", ["get", "health"], 85],
+        "#10b981", // Green for healthy
+        [">", ["get", "health"], 75],
+        "#f59e0b", // Yellow for moderate
+        "#ef4444", // Red for unhealthy
+      ],
+      "fill-opacity": 0.3,
+    },
+  };
+
+  const farmBoundaryOutlineLayer = {
+    id: "farm-boundaries-outline",
+    type: "line",
+    paint: {
+      "line-color": "#ffffff",
+      "line-width": 2,
+    },
+  };
+
+  // Get user location if available
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setViewState((prev) => ({
+            ...prev,
+            longitude: position.coords.longitude,
+            latitude: position.coords.latitude,
+          }));
+        },
+        (error) => {
+          console.log("Location access denied, using default location");
+        }
+      );
+    }
+  }, []);
+
+  const getMarkerColor = (health) => {
+    if (health > 85) return "#10b981"; // Green
+    if (health > 75) return "#f59e0b"; // Yellow
+    return "#ef4444"; // Red
+  };
+
+  const getDiseaseMarkerColor = (severity) => {
+    switch (severity.toLowerCase()) {
+      case "high":
+        return "#ef4444";
+      case "medium":
+        return "#f59e0b";
+      case "low":
+        return "#fbbf24";
+      default:
+        return "#6b7280";
+    }
+  };
+
+  return (
+    <div className="map-container">
+      <div className="map-header">
+        <h3 className="map-title">Farm Management Dashboard</h3>
+        <div className="map-controls">
+          <div className="map-style-selector">
+            <button
+              onClick={() =>
+                setMapStyle("mapbox://styles/mapbox/satellite-streets-v12")
+              }
+              className={`style-btn ${
+                mapStyle.includes("satellite") ? "active" : ""
+              }`}
+            >
+              <Satellite size={16} />
+              Satellite
+            </button>
+            <button
+              onClick={() => setMapStyle("mapbox://styles/mapbox/streets-v12")}
+              className={`style-btn ${
+                mapStyle.includes("streets-v12") ? "active" : ""
+              }`}
+            >
+              <Layers size={16} />
+              Streets
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="map-wrapper">
+        <Map
+          ref={mapRef}
+          {...viewState}
+          onMove={(evt) => setViewState(evt.viewState)}
+          mapboxAccessToken={MAPBOX_TOKEN}
+          style={{ width: "100%", height: "100%" }}
+          mapStyle={mapStyle}
+          attributionControl={false}
+        >
+          {/* Farm Boundaries */}
+          <Source id="farm-boundaries" type="geojson" data={farmBoundaries}>
+            <Layer {...farmBoundaryLayer} />
+            <Layer {...farmBoundaryOutlineLayer} />
+          </Source>
+
+          {/* Farm Location Markers */}
+          {farmLocations.map((farm) => (
+            <Marker
+              key={farm.id}
+              longitude={farm.coordinates[0]}
+              latitude={farm.coordinates[1]}
+              anchor="bottom"
+            >
+              <div
+                className="farm-marker"
+                style={{ backgroundColor: getMarkerColor(farm.health) }}
+                onClick={() => setSelectedMarker({ type: "farm", data: farm })}
+              >
+                <MapPin size={20} color="white" />
+                <div className="marker-label">{farm.name}</div>
+              </div>
+            </Marker>
+          ))}
+
+          {/* Disease Markers */}
+          {diseaseMarkers.map((disease) => (
+            <Marker
+              key={`disease-${disease.id}`}
+              longitude={disease.coordinates[0]}
+              latitude={disease.coordinates[1]}
+              anchor="bottom"
+            >
+              <div
+                className="disease-marker"
+                style={{
+                  backgroundColor: getDiseaseMarkerColor(disease.severity),
+                }}
+                onClick={() =>
+                  setSelectedMarker({ type: "disease", data: disease })
+                }
+              >
+                <AlertTriangle size={16} color="white" />
+              </div>
+            </Marker>
+          ))}
+
+          {/* Weather Station Markers */}
+          {weatherStations.map((station) => (
+            <Marker
+              key={`weather-${station.id}`}
+              longitude={station.coordinates[0]}
+              latitude={station.coordinates[1]}
+              anchor="bottom"
+            >
+              <div
+                className="weather-marker"
+                onClick={() =>
+                  setSelectedMarker({ type: "weather", data: station })
+                }
+              >
+                <Cloud size={16} color="#3b82f6" />
+              </div>
+            </Marker>
+          ))}
+
+          {/* Popup for selected marker */}
+          {selectedMarker && (
+            <Popup
+              longitude={selectedMarker.data.coordinates[0]}
+              latitude={selectedMarker.data.coordinates[1]}
+              anchor="top"
+              onClose={() => setSelectedMarker(null)}
+              className="map-popup"
+            >
+              <div className="popup-content">
+                {selectedMarker.type === "farm" && (
+                  <>
+                    <h4>{selectedMarker.data.name}</h4>
+                    <div className="popup-details">
+                      <div className="detail-row">
+                        <span>Crop:</span>
+                        <span>{selectedMarker.data.crop}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span>Size:</span>
+                        <span>{selectedMarker.data.size} acres</span>
+                      </div>
+                      <div className="detail-row">
+                        <span>Health:</span>
+                        <span
+                          className={`health-score ${
+                            selectedMarker.data.health > 85
+                              ? "good"
+                              : selectedMarker.data.health > 75
+                              ? "moderate"
+                              : "poor"
+                          }`}
+                        >
+                          {selectedMarker.data.health}%
+                        </span>
+                      </div>
+                      <div className="detail-row">
+                        <span>Diseases:</span>
+                        <span>{selectedMarker.data.diseases}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span>Last Inspection:</span>
+                        <span>{selectedMarker.data.lastInspection}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {selectedMarker.type === "disease" && (
+                  <>
+                    <h4>Disease Alert</h4>
+                    <div className="popup-details">
+                      <div className="detail-row">
+                        <span>Disease:</span>
+                        <span>{selectedMarker.data.disease}</span>
+                      </div>
+                      <div className="detail-row">
+                        <span>Severity:</span>
+                        <span
+                          className={`severity ${selectedMarker.data.severity.toLowerCase()}`}
+                        >
+                          {selectedMarker.data.severity}
+                        </span>
+                      </div>
+                      <div className="detail-row">
+                        <span>Detected:</span>
+                        <span>{selectedMarker.data.detectedDate}</span>
+                      </div>
+                    </div>
+                    <button className="popup-btn">View Treatment</button>
+                  </>
+                )}
+
+                {selectedMarker.type === "weather" && (
+                  <>
+                    <h4>Weather Station</h4>
+                    <div className="popup-details">
+                      <div className="detail-row">
+                        <span>Temperature:</span>
+                        <span>{selectedMarker.data.temperature}°C</span>
+                      </div>
+                      <div className="detail-row">
+                        <span>Humidity:</span>
+                        <span>{selectedMarker.data.humidity}%</span>
+                      </div>
+                      <div className="detail-row">
+                        <span>Rainfall:</span>
+                        <span>{selectedMarker.data.rainfall}mm</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </Popup>
+          )}
+        </Map>
+
+        {/* Map Legend */}
+        <div className="map-legend">
+          <h4>Legend</h4>
+          <div className="legend-item">
+            <div className="legend-marker farm-marker-legend good"></div>
+            <span>Healthy Farm (&gt;85%)</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-marker farm-marker-legend moderate"></div>
+            <span>Moderate Health (75-85%)</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-marker farm-marker-legend poor"></div>
+            <span>Poor Health (&lt;75%)</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-marker disease-marker-legend"></div>
+            <span>Disease Alert</span>
+          </div>
+          <div className="legend-item">
+            <div className="legend-marker weather-marker-legend"></div>
+            <span>Weather Station</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Main Dashboard Component
+const Dashboard = () => {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("home");
+  const [loading, setLoading] = useState(true);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
+
+  // Data state
+  const [diseaseHistory, setDiseaseHistory] = useState([]);
+  const [diseaseTrends, setDiseaseTrends] = useState(null);
+  const [weatherData, setWeatherData] = useState(null);
+  const [treatmentRecommendations, setTreatmentRecommendations] = useState([]);
+  const [userStats, setUserStats] = useState(null);
+
+  // Chat UI state
   const [showQuickActions, setShowQuickActions] = useState(true);
 
-  // Predefined quick questions
+  // Quick questions data
   const quickQuestions = [
     {
       id: 1,
-      icon: "🌧️",
-      text: "Should I water my crops today?",
-      category: "Irrigation",
+      text: "How to identify wheat diseases?",
+      category: "Disease Detection",
+      icon: "🦠",
     },
     {
       id: 2,
-      icon: "🦠",
-      text: "Help me identify a plant disease",
-      category: "Disease",
+      text: "What's the weather forecast?",
+      category: "Weather",
+      icon: "🌤️",
     },
     {
       id: 3,
-      icon: "🌾",
-      text: "When should I harvest my wheat?",
-      category: "Harvest",
+      text: "Best irrigation schedule for my crops?",
+      category: "Irrigation",
+      icon: "💧",
     },
     {
       id: 4,
-      icon: "💊",
-      text: "Best fertilizer for my crops?",
-      category: "Fertilizer",
+      text: "When should I harvest wheat?",
+      category: "Harvest",
+      icon: "🌾",
     },
     {
       id: 5,
-      icon: "📊",
-      text: "Show me disease trends",
-      category: "Analytics",
+      text: "Recommended fertilizers for this season?",
+      category: "Fertilizers",
+      icon: "💊",
     },
     {
       id: 6,
-      icon: "🌡️",
-      text: "What's the weather forecast?",
-      category: "Weather",
+      text: "How to prevent pest attacks?",
+      category: "Pest Control",
+      icon: "🐛",
     },
   ];
 
-  // Disease trend data
-  const weeklyTrendData = [
-    { week: "Week 1", diseases: 12, treated: 10, prevented: 2 },
-    { week: "Week 2", diseases: 8, treated: 7, prevented: 3 },
-    { week: "Week 3", diseases: 15, treated: 12, prevented: 1 },
-    { week: "Week 4", diseases: 6, treated: 6, prevented: 4 },
-    { week: "Week 5", diseases: 10, treated: 8, prevented: 5 },
-    { week: "Week 6", diseases: 4, treated: 4, prevented: 6 },
-    { week: "Week 7", diseases: 7, treated: 6, prevented: 7 },
-  ];
+  // Initialize app
+  useEffect(() => {
+    const savedToken = localStorage.getItem("vriddhi_token");
+    const savedUser = localStorage.getItem("vriddhi_user");
 
-  const diseaseTypeData = [
-    { name: "Leaf Blight", cases: 25, color: "#ef4444" },
-    { name: "Root Rot", cases: 18, color: "#f97316" },
-    { name: "Powdery Mildew", cases: 15, color: "#eab308" },
-    { name: "Rust", cases: 12, color: "#22c55e" },
-    { name: "Others", cases: 8, color: "#3b82f6" },
-  ];
-
-  const monthlyData = [
-    { month: "Jan", diseases: 45, recovery: 38 },
-    { month: "Feb", diseases: 32, recovery: 29 },
-    { month: "Mar", diseases: 28, recovery: 25 },
-    { month: "Apr", diseases: 40, recovery: 35 },
-    { month: "May", diseases: 35, recovery: 32 },
-    { month: "Jun", diseases: 22, recovery: 20 },
-  ];
-
-  // Treatment recommendations data
-  const treatmentRecommendations = [
-    {
-      id: 1,
-      disease: "Leaf Blight",
-      severity: "High",
-      treatment: "Apply copper fungicide spray every 7-10 days",
-      duration: "3-4 weeks",
-      cost: "$45/acre",
-      effectiveness: "92%",
-    },
-    {
-      id: 2,
-      disease: "Root Rot",
-      severity: "Medium",
-      treatment: "Improve drainage and apply biological fungicide",
-      duration: "2-3 weeks",
-      cost: "$32/acre",
-      effectiveness: "87%",
-    },
-    {
-      id: 3,
-      disease: "Powdery Mildew",
-      severity: "Low",
-      treatment: "Neem oil spray twice weekly",
-      duration: "2 weeks",
-      cost: "$18/acre",
-      effectiveness: "89%",
-    },
-    {
-      id: 4,
-      disease: "Rust",
-      severity: "Medium",
-      treatment: "Systemic fungicide application",
-      duration: "3 weeks",
-      cost: "$38/acre",
-      effectiveness: "94%",
-    },
-  ];
-
-  // Dummy chatbot responses
-  const getBotResponse = (userMessage) => {
-    const message = userMessage.toLowerCase();
-
-    if (
-      message.includes("disease") ||
-      message.includes("sick") ||
-      message.includes("problem")
-    ) {
-      return "I can help you identify crop diseases! Please upload a photo of the affected plant leaves, and I'll analyze it for common diseases like blight, rust, or mildew. Based on recent data, leaf blight is the most common issue in your area.";
+    if (savedToken && savedUser) {
+      setToken(savedToken);
+      setUser(JSON.parse(savedUser));
+      loadInitialData(savedToken);
+    } else {
+      setLoading(false);
     }
+  }, []);
 
-    if (message.includes("water") || message.includes("irrigation")) {
-      return "Based on current weather data, I recommend watering your crops every 3 days. With 65% rain chance this week, you might want to reduce irrigation frequency. Your soil moisture levels look optimal.";
+  const loadInitialData = async (authToken) => {
+    try {
+      const [profileResult, statsResult, weatherResult] = await Promise.all([
+        api.getUserProfile(authToken),
+        api.getUserStats(authToken),
+        api.getCurrentWeather(authToken),
+      ]);
+
+      if (profileResult.success) setUser(profileResult.data);
+      if (statsResult.success) setUserStats(statsResult.data);
+      if (weatherResult.success) setWeatherData(weatherResult.data);
+
+      // Initialize chat
+      setChatMessages([
+        {
+          id: 1,
+          type: "bot",
+          message:
+            "Hello! I'm your agricultural assistant. How can I help you today?",
+          timestamp: new Date(),
+        },
+      ]);
+    } catch (error) {
+      console.error("Failed to load initial data:", error);
+    } finally {
+      setLoading(false);
     }
-
-    if (message.includes("fertilizer") || message.includes("nutrients")) {
-      return "For wheat crops, I suggest using nitrogen-rich fertilizers during the vegetative stage. Your soil analysis shows good phosphorus levels but could benefit from additional potassium.";
-    }
-
-    if (message.includes("weather") || message.includes("rain")) {
-      return "Current weather shows 65% chance of rain and low drought risk (15%). Perfect conditions for most crops with 78% optimal growing conditions! Temperature is ideal for wheat growth.";
-    }
-
-    if (message.includes("harvest") || message.includes("ready")) {
-      return "Your wheat crop will be ready for harvest in approximately 3 months. Based on growth monitoring, expect 15-20% higher yield than last season. I'll send notifications when it's optimal time.";
-    }
-
-    if (message.includes("trend") || message.includes("statistics")) {
-      return "Disease trends show a 30% decrease this month! Leaf blight cases are down, but watch for root rot in wet areas. Check the Disease Trends section for detailed analytics.";
-    }
-
-    if (message.includes("treatment") || message.includes("cure")) {
-      return "For current disease cases, copper fungicide shows 92% effectiveness for leaf blight. Biological treatments work well for root rot. Check Treatment Recommendations for detailed plans.";
-    }
-
-    if (message.includes("help") || message.includes("what can you do")) {
-      return "I can help you with:\n• Disease identification from photos\n• Irrigation scheduling based on weather\n• Fertilizer recommendations\n• Weather-based farming advice\n• Harvest timing predictions\n• Treatment effectiveness analysis\n• Disease trend monitoring";
-    }
-
-    // Default responses
-    const defaultResponses = [
-      "That's an interesting question! Could you provide more details about your crops or the specific issue you're facing?",
-      "I'm here to help with your agricultural needs. Are you dealing with any plant diseases, irrigation concerns, or growth issues?",
-      "Let me assist you with that. Can you tell me more about your farming situation? What type of crops and what challenges are you experiencing?",
-      "I'd be happy to help! What specific agricultural challenge can I help you solve today?",
-    ];
-
-    return defaultResponses[
-      Math.floor(Math.random() * defaultResponses.length)
-    ];
   };
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
+  const handleLogin = (authToken, userData) => {
+    setToken(authToken);
+    setUser(userData);
+    loadInitialData(authToken);
+  };
 
-    // Add user message
+  const handleLogout = () => {
+    localStorage.removeItem("vriddhi_token");
+    localStorage.removeItem("vriddhi_user");
+    setToken(null);
+    setUser(null);
+    setChatMessages([]);
+    setSessionId(null);
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || !token) return;
+
     const userMsg = {
-      id: chatMessages.length + 1,
+      id: Date.now(),
       type: "user",
       message: inputMessage,
       timestamp: new Date(),
@@ -224,18 +1078,39 @@ const Dashboard = () => {
     setInputMessage("");
     setIsTyping(true);
 
-    // Simulate bot typing delay
-    setTimeout(() => {
-      const botResponse = {
-        id: chatMessages.length + 2,
+    // Hide quick actions after first message
+    if (chatMessages.length <= 1) {
+      setShowQuickActions(false);
+    }
+
+    try {
+      const result = await api.sendMessage(currentMessage, sessionId, token);
+
+      if (result.success) {
+        if (!sessionId) setSessionId(result.data.sessionId);
+
+        const botResponse = {
+          id: Date.now() + 1,
+          type: "bot",
+          message: result.data.response,
+          timestamp: new Date(),
+        };
+
+        setChatMessages((prev) => [...prev, botResponse]);
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      const errorResponse = {
+        id: Date.now() + 1,
         type: "bot",
-        message: getBotResponse(currentMessage),
+        message: "Sorry, I'm having trouble connecting. Please try again.",
         timestamp: new Date(),
       };
-
-      setChatMessages((prev) => [...prev, botResponse]);
+      setChatMessages((prev) => [...prev, errorResponse]);
+    } finally {
       setIsTyping(false);
-    }, 1000 + Math.random() * 1000); // Random delay between 1-2 seconds
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -245,38 +1120,101 @@ const Dashboard = () => {
     }
   };
 
-  const handleQuickQuestion = (question) => {
-    setInputMessage(question);
+  // Handle quick question selection
+  const handleQuickQuestion = (questionText) => {
+    setInputMessage(questionText);
     setShowQuickActions(false);
-    // Auto-send after a short delay
+
+    // Auto-send the question after a short delay
     setTimeout(() => {
-      if (question.trim()) {
-        const userMsg = {
-          id: chatMessages.length + 1,
-          type: "user",
-          message: question,
-          timestamp: new Date(),
-        };
-
-        setChatMessages((prev) => [...prev, userMsg]);
-        setInputMessage("");
-        setIsTyping(true);
-
-        setTimeout(() => {
-          const botResponse = {
-            id: chatMessages.length + 2,
-            type: "bot",
-            message: getBotResponse(question),
-            timestamp: new Date(),
-          };
-
-          setChatMessages((prev) => [...prev, botResponse]);
-          setIsTyping(false);
-        }, 1000 + Math.random() * 1000);
-      }
+      handleSendMessage();
     }, 100);
   };
 
+  // Load section-specific data
+  useEffect(() => {
+    if (!token) return;
+
+    const loadSectionData = async () => {
+      try {
+        switch (activeSection) {
+          case "trends":
+            const trendsResult = await api.getDiseaseTrends(token);
+            if (trendsResult.success) setDiseaseTrends(trendsResult.data);
+            break;
+
+          case "treatments":
+            const treatmentsResult = await api.getTreatmentRecommendations(
+              token
+            );
+            if (treatmentsResult.success)
+              setTreatmentRecommendations(treatmentsResult.data);
+            break;
+
+          default:
+            break;
+        }
+      } catch (error) {
+        console.error(`Failed to load ${activeSection} data:`, error);
+      }
+    };
+
+    loadSectionData();
+  }, [activeSection, token]);
+
+  // Disease image upload handler
+  const handleDiseaseImageUpload = async (file, cropType) => {
+    if (!file || !token) return;
+
+    const formData = new FormData();
+    formData.append("image", file);
+    formData.append("cropType", cropType || "wheat");
+
+    try {
+      const result = await api.predictDisease(formData, token);
+
+      if (result.success) {
+        // Add disease detection result to chat
+        const detectionMessage = {
+          id: Date.now(),
+          type: "bot",
+          message: `Disease Analysis Complete!\n\nDisease: ${
+            result.data.prediction.disease
+          }\nConfidence: ${(result.data.prediction.confidence * 100).toFixed(
+            1
+          )}%\nSeverity: ${
+            result.data.prediction.severity
+          }\n\nRecommendations:\n${result.data.recommendations.immediate}`,
+          timestamp: new Date(),
+        };
+        setChatMessages((prev) => [...prev, detectionMessage]);
+
+        const historyResult = await api.getDiseaseHistory(token);
+        if (historyResult.success)
+          setDiseaseHistory(historyResult.data.detections);
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Disease prediction failed:", error);
+      return { success: false, message: "Failed to analyze image" };
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner">🌾</div>
+        <p>Loading your farm dashboard...</p>
+      </div>
+    );
+  }
+
+  if (!token || !user) {
+    return <LoginForm onLogin={handleLogin} />;
+  }
+
+  // Sidebar items
   const sidebarItems = [
     {
       icon: Home,
@@ -286,13 +1224,13 @@ const Dashboard = () => {
     },
     {
       icon: User,
-      label: "User Profile",
+      label: "Profile",
       active: activeSection === "profile",
       section: "profile",
     },
     {
       icon: MessageCircle,
-      label: "Chatbot",
+      label: "AI Assistant",
       active: activeSection === "chatbot",
       section: "chatbot",
     },
@@ -304,7 +1242,7 @@ const Dashboard = () => {
     },
     {
       icon: Stethoscope,
-      label: "Treatment Recommendations",
+      label: "Treatments",
       active: activeSection === "treatments",
       section: "treatments",
     },
@@ -322,9 +1260,7 @@ const Dashboard = () => {
         return (
           <div className="chat-container">
             <div className="chat-layout">
-              {/* Main Chat Area */}
               <div className="chat-main">
-                {/* Enhanced Chat Header */}
                 <div className="chat-header">
                   <div className="chat-header-content">
                     <div className="chat-header-left">
@@ -345,28 +1281,32 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Messages Container */}
                 <div className="chat-messages">
-                  {chatMessages.map((msg) => (
+                  {chatMessages.map((message) => (
                     <div
-                      key={msg.id}
-                      className={`message-wrapper ${
-                        msg.type === "user" ? "user" : "bot"
-                      }`}
+                      key={message.id}
+                      className={`message-wrapper ${message.type}`}
                     >
-                      <div className={`message-container ${msg.type}`}>
-                        {/* Avatar */}
-                        <div className={`message-avatar ${msg.type}`}>
+                      <div className={`message-container ${message.type}`}>
+                        <div className={`message-avatar ${message.type}`}>
                           <span className="avatar-emoji">
-                            {msg.type === "user" ? "👨‍🌾" : "🤖"}
+                            {message.type === "user" ? "👨‍🌾" : "🤖"}
                           </span>
                         </div>
-
-                        {/* Message Bubble */}
-                        <div className={`message-bubble ${msg.type}`}>
-                          <p className="message-text">{msg.message}</p>
-                          <p className={`message-time ${msg.type}`}>
-                            {msg.timestamp.toLocaleTimeString([], {
+                        <div className={`message-bubble ${message.type}`}>
+                          <div className="message-text">
+                            {message.message.split("\n").map((line, index) => (
+                              <React.Fragment key={index}>
+                                {line}
+                                {index <
+                                  message.message.split("\n").length - 1 && (
+                                  <br />
+                                )}
+                              </React.Fragment>
+                            ))}
+                          </div>
+                          <p className={`message-time ${message.type}`}>
+                            {message.timestamp.toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}
@@ -423,16 +1363,13 @@ const Dashboard = () => {
                   </div>
                 )}
 
-                {/* Enhanced Input Area */}
                 <div className="chat-input-container">
-                  <div className="chat-input-wrapper">
-                    <div className="input-field-container">
+                  <div className="input-wrapper">
+                    <div className="input-container">
                       <textarea
-                        rows={1}
                         value={inputMessage}
                         onChange={(e) => {
                           setInputMessage(e.target.value);
-                          // Auto-resize textarea
                           e.target.style.height = "auto";
                           e.target.style.height =
                             Math.min(e.target.scrollHeight, 120) + "px";
@@ -455,7 +1392,7 @@ const Dashboard = () => {
                     </button>
                   </div>
 
-                  {/* Input Hints */}
+                  {/* Try Asking Section */}
                   <div className="input-hints">
                     <span className="hint-label">Try asking:</span>
                     {[
@@ -465,7 +1402,21 @@ const Dashboard = () => {
                     ].map((hint, idx) => (
                       <button
                         key={idx}
-                        onClick={() => setInputMessage(hint)}
+                        onClick={() => {
+                          setInputMessage(hint);
+                          // Auto-focus on input after setting the text
+                          setTimeout(() => {
+                            const inputElement =
+                              document.querySelector(".chat-input");
+                            if (inputElement) {
+                              inputElement.focus();
+                              inputElement.setSelectionRange(
+                                hint.length,
+                                hint.length
+                              );
+                            }
+                          }, 0);
+                        }}
                         className="hint-btn"
                       >
                         {hint}
@@ -475,32 +1426,8 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Sidebar with Quick Actions and Stats */}
+              {/* Chat Sidebar - Updated */}
               <div className="chat-sidebar">
-                {/* Chat Statistics */}
-                <div className="stats-card">
-                  <h4 className="stats-title">
-                    <span className="stats-icon">📊</span>
-                    Chat Statistics
-                  </h4>
-                  <div className="stats-list">
-                    <div className="stat-item">
-                      <span className="stat-label">Messages Today</span>
-                      <span className="stat-value green">
-                        {chatMessages.length}
-                      </span>
-                    </div>
-                    <div className="stat-item">
-                      <span className="stat-label">Avg Response Time</span>
-                      <span className="stat-value blue">1.2s</span>
-                    </div>
-                    <div className="stat-item">
-                      <span className="stat-label">Accuracy Rate</span>
-                      <span className="stat-value green">94%</span>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Popular Topics */}
                 <div className="stats-card">
                   <h4 className="stats-title">
@@ -530,7 +1457,34 @@ const Dashboard = () => {
                         icon: "💊",
                       },
                     ].map((item, idx) => (
-                      <div key={idx} className="topic-item">
+                      <div
+                        key={idx}
+                        className="topic-item"
+                        onClick={() => {
+                          // Handle topic click to populate input
+                          const topicQuestions = {
+                            "Disease Identification":
+                              "Help me identify a plant disease",
+                            "Irrigation Planning":
+                              "What's the best irrigation schedule?",
+                            "Harvest Timing": "When should I harvest my crops?",
+                            "Fertilizer Advice":
+                              "What fertilizer should I use?",
+                          };
+                          const question = topicQuestions[item.topic];
+                          if (question) {
+                            setInputMessage(question);
+                            setTimeout(() => {
+                              const inputElement =
+                                document.querySelector(".chat-input");
+                              if (inputElement) {
+                                inputElement.focus();
+                              }
+                            }, 0);
+                          }
+                        }}
+                        style={{ cursor: "pointer" }}
+                      >
                         <span className="topic-icon">{item.icon}</span>
                         <div className="topic-content">
                           <p className="topic-name">{item.topic}</p>
@@ -541,25 +1495,32 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Recent Insights */}
-                <div className="insights-card">
+                {/* Image Upload for Disease Detection */}
+                <div className="stats-card">
                   <h4 className="stats-title">
-                    <span className="stats-icon">💡</span>
-                    AI Insights
+                    <span className="stats-icon">📷</span>
+                    Disease Detection
                   </h4>
-                  <div className="insights-list">
-                    <div className="insight-item green">
-                      <p className="insight-title">Optimal Planting Window</p>
-                      <p className="insight-text">
-                        Next 2 weeks perfect for winter wheat planting
-                      </p>
-                    </div>
-                    <div className="insight-item blue">
-                      <p className="insight-title">Weather Alert</p>
-                      <p className="insight-text">
-                        Heavy rain expected this weekend - adjust irrigation
-                      </p>
-                    </div>
+                  <div className="upload-area">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          handleDiseaseImageUpload(file, "wheat");
+                        }
+                      }}
+                      style={{ display: "none" }}
+                      id="disease-upload"
+                    />
+                    <label htmlFor="disease-upload" className="upload-label">
+                      <Upload size={20} />
+                      <span>Upload Plant Photo</span>
+                    </label>
+                    <p className="upload-hint">
+                      Take a clear photo of affected leaves or plants
+                    </p>
                   </div>
                 </div>
               </div>
@@ -570,188 +1531,782 @@ const Dashboard = () => {
       case "trends":
         return (
           <div className="trends-container">
-            {/* Header */}
             <div className="trends-header">
               <h2 className="trends-title">Disease Trends Analysis</h2>
               <p className="trends-subtitle">
-                Monitor disease patterns and prevention effectiveness
+                Comprehensive disease statistics and trends analysis
               </p>
             </div>
 
-            {/* Summary Cards */}
-            <div className="summary-cards">
-              <div className="summary-card">
-                <div className="card-content">
-                  <div>
-                    <p className="card-label">Total Cases</p>
-                    <p className="card-value red">78</p>
+            {/* Statistics Cards */}
+            <div className="trends-stats-grid">
+              <div className="trends-stat-card blue">
+                <div className="trends-stat-icon">
+                  <div className="trends-icon-circle blue">
+                    <AlertTriangle size={24} />
                   </div>
-                  <AlertTriangle className="card-icon red" size={24} />
+                </div>
+                <div className="trends-stat-content">
+                  <div className="trends-stat-number">78</div>
+                  <div className="trends-stat-label">Total Cases</div>
                 </div>
               </div>
-              <div className="summary-card">
-                <div className="card-content">
-                  <div>
-                    <p className="card-label">Treated</p>
-                    <p className="card-value green">65</p>
+
+              <div className="trends-stat-card green">
+                <div className="trends-stat-icon">
+                  <div className="trends-icon-circle green">
+                    <CheckCircle size={24} />
                   </div>
-                  <TrendingUp className="card-icon green" size={24} />
+                </div>
+                <div className="trends-stat-content">
+                  <div className="trends-stat-number">65</div>
+                  <div className="trends-stat-label">Treated</div>
                 </div>
               </div>
-              <div className="summary-card">
-                <div className="card-content">
-                  <div>
-                    <p className="card-label">Prevention Success</p>
-                    <p className="card-value blue">28</p>
+
+              <div className="trends-stat-card orange">
+                <div className="trends-stat-icon">
+                  <div className="trends-icon-circle orange">
+                    <Shield size={24} />
                   </div>
-                  <TrendingUp className="card-icon blue" size={24} />
+                </div>
+                <div className="trends-stat-content">
+                  <div className="trends-stat-number">28</div>
+                  <div className="trends-stat-label">Prevention Success</div>
                 </div>
               </div>
-              <div className="summary-card">
-                <div className="card-content">
-                  <div>
-                    <p className="card-label">Recovery Rate</p>
-                    <p className="card-value green">83%</p>
+
+              <div className="trends-stat-card purple">
+                <div className="trends-stat-icon">
+                  <div className="trends-icon-circle purple">
+                    <TrendingUp size={24} />
                   </div>
-                  <TrendingUp className="card-icon green" size={24} />
+                </div>
+                <div className="trends-stat-content">
+                  <div className="trends-stat-number">83%</div>
+                  <div className="trends-stat-label">Recovery Rate</div>
                 </div>
               </div>
             </div>
 
-            {/* Charts */}
-            <div className="charts-grid">
-              {/* Weekly Trends */}
-              <div className="chart-card">
-                <h3 className="chart-title">Weekly Disease Trends</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={weeklyTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="week" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line
-                      type="monotone"
-                      dataKey="diseases"
-                      stroke="#ef4444"
-                      name="New Cases"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="treated"
-                      stroke="#22c55e"
-                      name="Treated"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="prevented"
-                      stroke="#3b82f6"
-                      name="Prevented"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+            {/* Charts Grid */}
+            <div className="trends-charts-grid">
+              {/* Weekly Disease Trends Chart */}
+              <div className="trends-chart-card">
+                <div className="trends-chart-header">
+                  <h3 className="trends-chart-title">Weekly Disease Trends</h3>
+                  <p className="trends-chart-subtitle">
+                    Disease progression over 7 weeks
+                  </p>
+                </div>
+                <div className="trends-chart-content">
+                  <div style={{ width: "100%", height: 350 }}>
+                    {(() => {
+                      const weeklyData = [
+                        {
+                          week: "Week 1",
+                          leafBlight: 12,
+                          rootRot: 8,
+                          rust: 5,
+                          powderyMildew: 6,
+                        },
+                        {
+                          week: "Week 2",
+                          leafBlight: 15,
+                          rootRot: 10,
+                          rust: 7,
+                          powderyMildew: 8,
+                        },
+                        {
+                          week: "Week 3",
+                          leafBlight: 18,
+                          rootRot: 12,
+                          rust: 6,
+                          powderyMildew: 9,
+                        },
+                        {
+                          week: "Week 4",
+                          leafBlight: 22,
+                          rootRot: 15,
+                          rust: 8,
+                          powderyMildew: 11,
+                        },
+                        {
+                          week: "Week 5",
+                          leafBlight: 19,
+                          rootRot: 13,
+                          rust: 9,
+                          powderyMildew: 10,
+                        },
+                        {
+                          week: "Week 6",
+                          leafBlight: 16,
+                          rootRot: 11,
+                          rust: 7,
+                          powderyMildew: 8,
+                        },
+                        {
+                          week: "Week 7",
+                          leafBlight: 14,
+                          rootRot: 9,
+                          rust: 6,
+                          powderyMildew: 7,
+                        },
+                      ];
+
+                      return (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={weeklyData}>
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="#f0f0f0"
+                            />
+                            <XAxis dataKey="week" stroke="#666" fontSize={12} />
+                            <YAxis stroke="#666" fontSize={12} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "white",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                              }}
+                            />
+                            <Legend />
+                            <Line
+                              type="monotone"
+                              dataKey="leafBlight"
+                              stroke="#e74c3c"
+                              strokeWidth={2}
+                              name="Leaf Blight"
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="rootRot"
+                              stroke="#f39c12"
+                              strokeWidth={2}
+                              name="Root Rot"
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="rust"
+                              stroke="#9b59b6"
+                              strokeWidth={2}
+                              name="Rust"
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="powderyMildew"
+                              stroke="#3498db"
+                              strokeWidth={2}
+                              name="Powdery Mildew"
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                  </div>
+                </div>
               </div>
 
-              {/* Disease Types */}
-              <div className="chart-card">
-                <h3 className="chart-title">Disease Distribution</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={diseaseTypeData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) =>
-                        `${name} ${(percent * 100).toFixed(0)}%`
-                      }
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="cases"
-                    >
-                      {diseaseTypeData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+              {/* Disease Distribution Pie Chart */}
+              <div className="trends-chart-card">
+                <div className="trends-chart-header">
+                  <h3 className="trends-chart-title">Disease Distribution</h3>
+                  <p className="trends-chart-subtitle">
+                    Current disease breakdown
+                  </p>
+                </div>
+                <div className="trends-chart-content">
+                  <div style={{ width: "100%", height: 350 }}>
+                    {(() => {
+                      const distributionData = [
+                        { name: "Leaf Blight", value: 32, color: "#e74c3c" },
+                        { name: "Root Rot", value: 23, color: "#f39c12" },
+                        { name: "Powdery Mildew", value: 19, color: "#3498db" },
+                        { name: "Rust", value: 15, color: "#9b59b6" },
+                        { name: "Others", value: 11, color: "#95a5a6" },
+                      ];
+
+                      return (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={distributionData}
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={100}
+                              dataKey="value"
+                              label={({ name, value }) => `${name}: ${value}%`}
+                              labelLine={false}
+                              fontSize={12}
+                            >
+                              {distributionData.map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={entry.color}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "white",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                  </div>
+                </div>
               </div>
 
-              {/* Monthly Comparison */}
-              <div className="chart-card full-width">
-                <h3 className="chart-title">
-                  Monthly Disease vs Recovery Comparison
-                </h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar
-                      dataKey="diseases"
-                      fill="#ef4444"
-                      name="Disease Cases"
-                    />
-                    <Bar dataKey="recovery" fill="#22c55e" name="Recoveries" />
-                  </BarChart>
-                </ResponsiveContainer>
+              {/* Monthly Comparison Bar Chart */}
+              <div className="trends-chart-card full-width">
+                <div className="trends-chart-header">
+                  <h3 className="trends-chart-title">
+                    Monthly Disease vs Recovery Comparison
+                  </h3>
+                  <p className="trends-chart-subtitle">
+                    Disease cases and recovery rates over 6 months
+                  </p>
+                </div>
+                <div className="trends-chart-content">
+                  <div style={{ width: "100%", height: 350 }}>
+                    {(() => {
+                      const monthlyData = [
+                        { month: "Jan", cases: 45, recovered: 38 },
+                        { month: "Feb", cases: 52, recovered: 44 },
+                        { month: "Mar", cases: 38, recovered: 35 },
+                        { month: "Apr", cases: 61, recovered: 55 },
+                        { month: "May", cases: 73, recovered: 68 },
+                        { month: "Jun", cases: 48, recovered: 43 },
+                      ];
+
+                      return (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={monthlyData}>
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="#f0f0f0"
+                            />
+                            <XAxis
+                              dataKey="month"
+                              stroke="#666"
+                              fontSize={12}
+                            />
+                            <YAxis stroke="#666" fontSize={12} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "white",
+                                border: "1px solid #ddd",
+                                borderRadius: "8px",
+                                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                              }}
+                            />
+                            <Legend />
+                            <Bar
+                              dataKey="cases"
+                              fill="#e74c3c"
+                              name="Disease Cases"
+                              radius={[4, 4, 0, 0]}
+                            />
+                            <Bar
+                              dataKey="recovered"
+                              fill="#27ae60"
+                              name="Recovered"
+                              radius={[4, 4, 0, 0]}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Analytics */}
+            <div className="trends-analytics-grid">
+              <div className="trends-analytics-card">
+                <h4 className="trends-analytics-title">Key Insights</h4>
+                <div className="trends-insights-list">
+                  <div className="trends-insight-item">
+                    <div className="trends-insight-icon success">↗</div>
+                    <div className="trends-insight-content">
+                      <div className="trends-insight-text">
+                        Recovery rate improved by 15% this month
+                      </div>
+                      <div className="trends-insight-subtitle">
+                        Prevention strategies showing effectiveness
+                      </div>
+                    </div>
+                  </div>
+                  <div className="trends-insight-item">
+                    <div className="trends-insight-icon warning">⚠</div>
+                    <div className="trends-insight-content">
+                      <div className="trends-insight-text">
+                        Leaf blight cases increased in humid conditions
+                      </div>
+                      <div className="trends-insight-subtitle">
+                        Consider enhanced fungicide application
+                      </div>
+                    </div>
+                  </div>
+                  <div className="trends-insight-item">
+                    <div className="trends-insight-icon info">ℹ</div>
+                    <div className="trends-insight-content">
+                      <div className="trends-insight-text">
+                        Root rot most common in overwatered areas
+                      </div>
+                      <div className="trends-insight-subtitle">
+                        Adjust irrigation schedules accordingly
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="trends-analytics-card">
+                <h4 className="trends-analytics-title">Recommendations</h4>
+                <div className="trends-recommendations-list">
+                  <div className="trends-recommendation-item">
+                    <div className="trends-recommendation-priority high">
+                      High Priority
+                    </div>
+                    <div className="trends-recommendation-text">
+                      Implement preventive fungicide spray for leaf blight
+                    </div>
+                  </div>
+                  <div className="trends-recommendation-item">
+                    <div className="trends-recommendation-priority medium">
+                      Medium Priority
+                    </div>
+                    <div className="trends-recommendation-text">
+                      Review irrigation schedule to prevent root rot
+                    </div>
+                  </div>
+                  <div className="trends-recommendation-item">
+                    <div className="trends-recommendation-priority low">
+                      Low Priority
+                    </div>
+                    <div className="trends-recommendation-text">
+                      Continue current rust prevention measures
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         );
 
       case "treatments":
+        // Mock treatment data for demonstration (replace with actual API data)
+        const mockTreatments =
+          treatmentRecommendations && treatmentRecommendations.length > 0
+            ? treatmentRecommendations.map((treatment) => ({
+                _id: treatment._id || Math.random(),
+                diseaseName: treatment.diseaseName || "Unknown Disease",
+                severity: treatment.severity || "Medium",
+                effectiveness: treatment.effectiveness || { percentage: 0 },
+                treatment: treatment.treatment || {
+                  method: "Not specified",
+                  duration: "Not specified",
+                  description: "No description available",
+                },
+                cost: treatment.cost || {
+                  currency: "₹",
+                  amount: 0,
+                  unit: "acre",
+                },
+                urgency: treatment.urgency || "scheduled",
+                materials: treatment.materials || [],
+                instructions: treatment.instructions || [],
+              }))
+            : [
+                {
+                  _id: 1,
+                  diseaseName: "Leaf Blight",
+                  severity: "High",
+                  effectiveness: { percentage: 92 },
+                  treatment: {
+                    method: "Fungicide Spray",
+                    duration: "7-10 days",
+                    description:
+                      "Apply copper-based fungicide spray in early morning or late evening. Ensure complete coverage of affected leaves and stems.",
+                  },
+                  cost: { currency: "₹", amount: 450, unit: "acre" },
+                  urgency: "immediate",
+                  materials: [
+                    "Copper sulfate",
+                    "Spreader sticker",
+                    "Protective gear",
+                  ],
+                  instructions: [
+                    "Mix 2g fungicide per liter of water",
+                    "Spray during cool hours (early morning/evening)",
+                    "Repeat application after 7 days if needed",
+                    "Wear protective clothing during application",
+                  ],
+                },
+                {
+                  _id: 2,
+                  diseaseName: "Root Rot",
+                  severity: "Medium",
+                  effectiveness: { percentage: 85 },
+                  treatment: {
+                    method: "Soil Treatment & Drainage",
+                    duration: "2-3 weeks",
+                    description:
+                      "Improve soil drainage and apply biological fungicide to control root rot pathogens effectively.",
+                  },
+                  cost: { currency: "₹", amount: 320, unit: "acre" },
+                  urgency: "moderate",
+                  materials: [
+                    "Bio-fungicide",
+                    "Organic compost",
+                    "Drainage materials",
+                  ],
+                  instructions: [
+                    "Improve field drainage immediately",
+                    "Apply bio-fungicide to soil",
+                    "Add organic matter to improve soil structure",
+                    "Monitor plant recovery progress",
+                  ],
+                },
+                {
+                  _id: 3,
+                  diseaseName: "Powdery Mildew",
+                  severity: "Low",
+                  effectiveness: { percentage: 89 },
+                  treatment: {
+                    method: "Sulfur Dusting",
+                    duration: "5-7 days",
+                    description:
+                      "Apply sulfur-based powder during dry conditions to control powdery mildew spores effectively.",
+                  },
+                  cost: { currency: "₹", amount: 280, unit: "acre" },
+                  urgency: "scheduled",
+                  materials: [
+                    "Sulfur powder",
+                    "Dusting equipment",
+                    "Protective mask",
+                  ],
+                  instructions: [
+                    "Apply during dry, calm weather",
+                    "Dust evenly over affected plants",
+                    "Avoid application during flowering",
+                    "Reapply if rain occurs within 24 hours",
+                  ],
+                },
+              ];
+
         return (
           <div className="treatments-container">
             <div className="treatments-header">
-              <h2 className="treatments-title">Treatment Recommendations</h2>
-              <p className="treatments-subtitle">
-                Personalized treatment plans based on disease analysis
-              </p>
+              <div className="treatments-header-content">
+                <div>
+                  <h2 className="treatments-title">
+                    <span className="treatments-icon">🎯</span>
+                    Treatment Recommendations
+                  </h2>
+                  <p className="treatments-subtitle">
+                    AI-powered personalized treatment plans based on disease
+                    analysis
+                  </p>
+                </div>
+                <div className="treatments-stats">
+                  <div className="treatments-stat-item">
+                    <span className="stat-number">{mockTreatments.length}</span>
+                    <span className="stat-label">Active Treatments</span>
+                  </div>
+                  <div className="treatments-stat-item">
+                    <span className="stat-number">
+                      {Math.round(
+                        mockTreatments.reduce(
+                          (acc, t) => acc + t.effectiveness.percentage,
+                          0
+                        ) / mockTreatments.length
+                      )}
+                      %
+                    </span>
+                    <span className="stat-label">Avg. Effectiveness</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter and Sort Options */}
+            <div className="treatments-controls">
+              <div className="treatments-filters">
+                <button className="filter-btn active">
+                  <span className="filter-icon">🔥</span>
+                  All Treatments
+                </button>
+                <button className="filter-btn">
+                  <span className="filter-icon">⚡</span>
+                  High Priority
+                </button>
+                <button className="filter-btn">
+                  <span className="filter-icon">🛡️</span>
+                  Preventive
+                </button>
+                <button className="filter-btn">
+                  <span className="filter-icon">💊</span>
+                  Active Treatment
+                </button>
+              </div>
+              <div className="treatments-sort">
+                <select className="sort-dropdown">
+                  <option value="effectiveness">Sort by Effectiveness</option>
+                  <option value="urgency">Sort by Urgency</option>
+                  <option value="cost">Sort by Cost</option>
+                </select>
+              </div>
             </div>
 
             <div className="treatments-grid">
-              {treatmentRecommendations.map((treatment) => (
-                <div key={treatment.id} className="treatment-card">
-                  <div className="treatment-header">
-                    <div>
-                      <h3 className="treatment-disease">{treatment.disease}</h3>
+              {mockTreatments.map((treatment) => (
+                <div key={treatment._id} className="treatment-card">
+                  <div className="treatment-card-header">
+                    <div className="treatment-disease-info">
+                      <div className="disease-icon">
+                        {treatment.diseaseName === "Leaf Blight"
+                          ? "🍃"
+                          : treatment.diseaseName === "Root Rot"
+                          ? "🌱"
+                          : "🌾"}
+                      </div>
+                      <div>
+                        <h3 className="treatment-disease-name">
+                          {treatment.diseaseName || "Unknown Disease"}
+                        </h3>
+                        <span
+                          className={`severity-badge ${
+                            treatment.severity?.toLowerCase() || "low"
+                          }`}
+                        >
+                          <span className="severity-dot"></span>
+                          {treatment.severity || "Unknown"} Severity
+                        </span>
+                      </div>
+                    </div>
+                    <div className="urgency-indicator">
                       <span
-                        className={`severity-badge ${treatment.severity.toLowerCase()}`}
+                        className={`urgency-badge ${
+                          treatment.urgency || "scheduled"
+                        }`}
                       >
-                        {treatment.severity} Severity
+                        {treatment.urgency === "immediate"
+                          ? "🚨"
+                          : treatment.urgency === "moderate"
+                          ? "⏰"
+                          : "📅"}
+                        {treatment.urgency
+                          ? treatment.urgency.charAt(0).toUpperCase() +
+                            treatment.urgency.slice(1)
+                          : "Not specified"}
                       </span>
                     </div>
-                    <div className="effectiveness-badge">
-                      <div className="effectiveness-label">Effectiveness</div>
-                      <div className="effectiveness-value">
-                        {treatment.effectiveness}
+                  </div>
+
+                  <div className="effectiveness-section">
+                    <div className="effectiveness-circle">
+                      <div className="effectiveness-percentage">
+                        {treatment.effectiveness?.percentage}%
+                      </div>
+                      <div className="effectiveness-label">Success Rate</div>
+                    </div>
+                    <div className="treatment-method">
+                      <h4 className="method-title">
+                        {treatment.treatment?.method}
+                      </h4>
+                      <p className="method-duration">
+                        <span className="duration-icon">⏱️</span>
+                        {treatment.treatment?.duration}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="treatment-description">
+                    <p>{treatment.treatment?.description}</p>
+                  </div>
+
+                  <div className="treatment-details-grid">
+                    <div className="detail-card">
+                      <div className="detail-icon">💰</div>
+                      <div className="detail-content">
+                        <div className="detail-label">Cost Estimate</div>
+                        <div className="detail-value">
+                          {treatment.cost?.currency}
+                          {treatment.cost?.amount}/{treatment.cost?.unit}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="detail-card">
+                      <div className="detail-icon">📦</div>
+                      <div className="detail-content">
+                        <div className="detail-label">Materials Needed</div>
+                        <div className="detail-value">
+                          {treatment.materials?.length || 0} items
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="treatment-details">
-                    <div className="detail-item">
-                      <div className="detail-label">Treatment</div>
-                      <div className="detail-value">{treatment.treatment}</div>
-                    </div>
-                    <div className="detail-item">
-                      <div className="detail-label">Duration</div>
-                      <div className="detail-value">{treatment.duration}</div>
-                    </div>
-                    <div className="detail-item">
-                      <div className="detail-label">Cost</div>
-                      <div className="detail-value">{treatment.cost}</div>
+                  <div className="materials-section">
+                    <h5 className="materials-title">Required Materials:</h5>
+                    <div className="materials-list">
+                      {treatment.materials?.map((material, index) => (
+                        <span key={index} className="material-tag">
+                          {material}
+                        </span>
+                      ))}
                     </div>
                   </div>
 
+                  <div className="instructions-section">
+                    <h5 className="instructions-title">
+                      <span className="instructions-icon">📋</span>
+                      Application Instructions:
+                    </h5>
+                    <ol className="instructions-list">
+                      {treatment.instructions?.map((instruction, index) => (
+                        <li key={index} className="instruction-item">
+                          {instruction}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+
                   <div className="treatment-actions">
-                    <button className="btn-apply">Apply Treatment</button>
-                    <button className="btn-details">View Details</button>
+                    <button className="btn-primary">
+                      <span className="btn-icon">✅</span>
+                      Start Treatment
+                    </button>
+                    <button className="btn-secondary">
+                      <span className="btn-icon">📋</span>
+                      Add to Schedule
+                    </button>
+                    <button className="btn-outline">
+                      <span className="btn-icon">📱</span>
+                      Get Reminders
+                    </button>
+                  </div>
+
+                  <div className="treatment-progress">
+                    <div className="progress-header">
+                      <span className="progress-label">Treatment Progress</span>
+                      <span className="progress-percentage">0%</span>
+                    </div>
+                    <div className="progress-bar">
+                      <div
+                        className="progress-fill"
+                        style={{ width: "0%" }}
+                      ></div>
+                    </div>
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Quick Actions Panel */}
+            <div className="treatments-quick-actions">
+              <h3 className="quick-actions-title">
+                <span className="quick-actions-icon">⚡</span>
+                Quick Actions
+              </h3>
+              <div className="quick-actions-grid">
+                <button className="quick-action-card">
+                  <div className="quick-action-icon">📸</div>
+                  <div className="quick-action-content">
+                    <h4>Scan New Disease</h4>
+                    <p>Upload image for instant diagnosis</p>
+                  </div>
+                </button>
+                <button className="quick-action-card">
+                  <div className="quick-action-icon">📊</div>
+                  <div className="quick-action-content">
+                    <h4>Treatment History</h4>
+                    <p>View past treatment records</p>
+                  </div>
+                </button>
+                <button className="quick-action-card">
+                  <div className="quick-action-icon">🎯</div>
+                  <div className="quick-action-content">
+                    <h4>Preventive Care</h4>
+                    <p>Get prevention recommendations</p>
+                  </div>
+                </button>
+                <button className="quick-action-card">
+                  <div className="quick-action-icon">📞</div>
+                  <div className="quick-action-content">
+                    <h4>Expert Consultation</h4>
+                    <p>Connect with agriculture experts</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case "profile":
+        return (
+          <div className="profile-container">
+            <div className="profile-header">
+              <h2>User Profile</h2>
+              <button onClick={handleLogout} className="logout-btn">
+                <LogOut size={16} />
+                <span>Logout</span>
+              </button>
+            </div>
+
+            <div className="profile-content">
+              <div className="profile-card">
+                <h3>Personal Information</h3>
+                <div className="profile-field">
+                  <label>Name:</label>
+                  <span>{user.name}</span>
+                </div>
+                <div className="profile-field">
+                  <label>Email:</label>
+                  <span>{user.email}</span>
+                </div>
+                <div className="profile-field">
+                  <label>Phone:</label>
+                  <span>{user.phone || "Not provided"}</span>
+                </div>
+              </div>
+
+              {user.farmDetails && (
+                <div className="profile-card">
+                  <h3>Farm Information</h3>
+                  <div className="profile-field">
+                    <label>Farm Name:</label>
+                    <span>{user.farmDetails.farmName || "Not provided"}</span>
+                  </div>
+                  <div className="profile-field">
+                    <label>Location:</label>
+                    <span>
+                      {user.farmDetails.location?.city},{" "}
+                      {user.farmDetails.location?.state}
+                    </span>
+                  </div>
+                  <div className="profile-field">
+                    <label>Farm Size:</label>
+                    <span>
+                      {user.farmDetails.farmSize?.value}{" "}
+                      {user.farmDetails.farmSize?.unit}
+                    </span>
+                  </div>
+                  <div className="profile-field">
+                    <label>Soil Type:</label>
+                    <span>{user.farmDetails.soilType || "Not specified"}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -759,7 +2314,6 @@ const Dashboard = () => {
       default:
         return (
           <div className="home-container">
-            {/* Left Side - Main Content */}
             <div className="home-main">
               {/* Stats Cards */}
               <div className="stats-grid">
@@ -773,16 +2327,22 @@ const Dashboard = () => {
                   </div>
                   <div className="stat-items">
                     <div className="stat-row">
-                      <span className="stat-label-small">Rain Chances</span>
-                      <span className="stat-value-small blue">65%</span>
+                      <span className="stat-label-small">Temperature</span>
+                      <span className="stat-value-small blue">
+                        {weatherData?.temperature || 25}°C
+                      </span>
                     </div>
                     <div className="stat-row">
-                      <span className="stat-label-small">Drought Risk</span>
-                      <span className="stat-value-small orange">15%</span>
+                      <span className="stat-label-small">Humidity</span>
+                      <span className="stat-value-small blue">
+                        {weatherData?.humidity || 65}%
+                      </span>
                     </div>
                     <div className="stat-row">
-                      <span className="stat-label-small">Optimal</span>
-                      <span className="stat-value-small green">78%</span>
+                      <span className="stat-label-small">Rain Chance</span>
+                      <span className="stat-value-small blue">
+                        {weatherData?.forecast?.rainChance || 30}%
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -799,10 +2359,6 @@ const Dashboard = () => {
                     <div className="stat-row">
                       <span className="stat-label-small">Overall Health</span>
                       <span className="stat-value-small green">87%</span>
-                    </div>
-                    <div className="stat-row">
-                      <span className="stat-label-small">Healthy Plants</span>
-                      <span className="stat-value-small green">92%</span>
                     </div>
                     <div className="stat-row">
                       <span className="stat-label-small">Growth Rate</span>
@@ -822,58 +2378,50 @@ const Dashboard = () => {
                   <div className="stat-items">
                     <div className="stat-row">
                       <span className="stat-label-small">Total Detected</span>
-                      <span className="stat-value-small red">23</span>
+                      <span className="stat-value-small red">
+                        {userStats?.diseaseStats?.totalDetections || 0}
+                      </span>
                     </div>
                     <div className="stat-row">
                       <span className="stat-label-small">This Week</span>
-                      <span className="stat-value-small orange">7</span>
-                    </div>
-                    <div className="stat-row">
-                      <span className="stat-label-small">Resolved</span>
-                      <span className="stat-value-small green">18</span>
+                      <span className="stat-value-small orange">
+                        {userStats?.diseaseStats?.thisWeek || 0}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Land Map */}
-              <div className="map-card">
-                <h3 className="map-title">Manage your fields</h3>
-                <div className="map-container">
-                  <div className="map-field field-1"></div>
-                  <div className="map-field field-2"></div>
-                  <div className="map-field field-3"></div>
-                  <div className="map-field field-4"></div>
-
-                  <div className="map-marker marker-1"></div>
-                  <div className="map-marker marker-2"></div>
-                  <div className="map-marker marker-3"></div>
-
-                  <div className="map-overlay">
-                    <span className="map-label">Field Overview - 45 acres</span>
-                  </div>
-                </div>
-              </div>
+              {/* Mapbox Farm Map */}
+              <FarmMap
+                user={user}
+                diseaseData={diseaseHistory}
+                weatherData={weatherData}
+              />
             </div>
 
-            {/* Right Side - Wheat Details Sidebar */}
+            {/* Sidebar */}
             <div className="wheat-sidebar">
               <div className="wheat-card">
                 <div className="wheat-header">
                   <div className="wheat-icon">
                     <div className="wheat-emoji">🌾</div>
                   </div>
-                  <h3 className="wheat-title">Wheat</h3>
+                  <h3 className="wheat-title">Current Crop</h3>
                 </div>
-
                 <div className="wheat-content">
                   <p className="wheat-description">
-                    For this plant, you should water 3 times a month every ten
-                    days and set the ambient temperature to degrees Celsius.
-                    Your products will be ready in the third month.
+                    {user.farmDetails?.cropTypes?.[0]?.name || "Wheat"}{" "}
+                    cultivation in progress. Monitor growth and follow
+                    recommended care practices.
                   </p>
-
                   <div className="wheat-details">
+                    <div className="wheat-detail">
+                      <span className="detail-label">Variety</span>
+                      <span className="detail-value">
+                        {user.farmDetails?.cropTypes?.[0]?.variety || "HD-2967"}
+                      </span>
+                    </div>
                     <div className="wheat-detail">
                       <span className="detail-label">Planting Season</span>
                       <span className="detail-value">Winter</span>
@@ -882,13 +2430,8 @@ const Dashboard = () => {
                       <span className="detail-label">Harvest Time</span>
                       <span className="detail-value">3 months</span>
                     </div>
-                    <div className="wheat-detail">
-                      <span className="detail-label">Water Frequency</span>
-                      <span className="detail-value">3x/month</span>
-                    </div>
                   </div>
-
-                  <button className="wheat-btn">Plan Details</button>
+                  <button className="wheat-btn">View Details</button>
                 </div>
               </div>
             </div>
@@ -940,7 +2483,7 @@ const Dashboard = () => {
                 <Menu size={20} />
               </button>
               <div>
-                <h1 className="header-title">Your agricultural assistant</h1>
+                <h1 className="header-title">Welcome back, {user.name}!</h1>
                 <p className="header-subtitle">
                   Managing your crops made simple and smart
                 </p>
@@ -949,7 +2492,7 @@ const Dashboard = () => {
             <div className="header-right">
               <div className="sync-info">
                 <span className="sync-label">Last sync:</span>
-                <span className="sync-time">2 min ago</span>
+                <span className="sync-time">Just now</span>
               </div>
             </div>
           </div>

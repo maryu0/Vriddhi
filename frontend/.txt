@@ -1,0 +1,263 @@
+case "chatbot":
+  return (
+    <div className="chat-container">
+      <div className="chat-layout">
+        <div className="chat-main">
+          <div className="chat-header">
+            <div className="chat-header-content">
+              <div className="chat-header-left">
+                <div className="chat-avatar-large">
+                  <span className="chat-emoji">🤖</span>
+                </div>
+                <div>
+                  <h3 className="chat-title">AgriBot Assistant</h3>
+                  <p className="chat-subtitle">
+                    Your smart farming companion • Always ready to help
+                  </p>
+                </div>
+              </div>
+              <div className="chat-status">
+                <div className="status-dot"></div>
+                <span className="status-text">Online</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="chat-messages">
+            {chatMessages.map((message) => (
+              <div
+                key={message.id}
+                className={`message-wrapper ${message.type}`}
+              >
+                <div className={`message-container ${message.type}`}>
+                  <div className={`message-avatar ${message.type}`}>
+                    <span className="avatar-emoji">
+                      {message.type === "user" ? "👨‍🌾" : "🤖"}
+                    </span>
+                  </div>
+                  <div className={`message-bubble ${message.type}`}>
+                    <div className="message-text">
+                      {message.message.split("\n").map((line, index) => (
+                        <React.Fragment key={index}>
+                          {line}
+                          {index <
+                            message.message.split("\n").length - 1 && (
+                            <br />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    <p className={`message-time ${message.type}`}>
+                      {message.timestamp.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {isTyping && (
+              <div className="message-wrapper bot">
+                <div className="message-container bot">
+                  <div className="message-avatar bot">
+                    <span className="avatar-emoji">🤖</span>
+                  </div>
+                  <div className="typing-bubble">
+                    <div className="typing-animation">
+                      <div className="typing-dot"></div>
+                      <div className="typing-dot"></div>
+                      <div className="typing-dot"></div>
+                      <span className="typing-text">
+                        AgriBot is thinking...
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Actions */}
+          {showQuickActions && chatMessages.length === 1 && (
+            <div className="quick-actions-container">
+              <h4 className="quick-actions-title">Quick Questions:</h4>
+              <div className="quick-actions-grid">
+                {quickQuestions.map((question) => (
+                  <button
+                    key={question.id}
+                    onClick={() => handleQuickQuestion(question.text)}
+                    className="quick-action-btn"
+                  >
+                    <span className="quick-action-icon">
+                      {question.icon}
+                    </span>
+                    <div>
+                      <p className="quick-action-text">{question.text}</p>
+                      <p className="quick-action-category">
+                        {question.category}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="chat-input-container">
+            <div className="input-wrapper">
+              <div className="input-container">
+                <textarea
+                  value={inputMessage}
+                  onChange={(e) => {
+                    setInputMessage(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height =
+                      Math.min(e.target.scrollHeight, 120) + "px";
+                  }}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask about diseases, weather, irrigation, fertilizers..."
+                  className="chat-input"
+                />
+                <div className="input-hint">
+                  <span>Press Enter</span>
+                </div>
+              </div>
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || isTyping}
+                className="send-btn"
+              >
+                <Send size={18} />
+                <span>Send</span>
+              </button>
+            </div>
+
+            {/* Try Asking Section */}
+            <div className="input-hints">
+              <span className="hint-label">Try asking:</span>
+              {[
+                "Disease help",
+                "Weather update", 
+                "Irrigation advice"
+              ].map((hint, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setInputMessage(hint);
+                    // Auto-focus on input after setting the text
+                    setTimeout(() => {
+                      const inputElement = document.querySelector('.chat-input');
+                      if (inputElement) {
+                        inputElement.focus();
+                        inputElement.setSelectionRange(hint.length, hint.length);
+                      }
+                    }, 0);
+                  }}
+                  className="hint-btn"
+                >
+                  {hint}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Chat Sidebar - Updated */}
+        <div className="chat-sidebar">
+          {/* Popular Topics */}
+          <div className="stats-card">
+            <h4 className="stats-title">
+              <span className="stats-icon">🔥</span>
+              Popular Topics
+            </h4>
+            <div className="topics-list">
+              {[
+                {
+                  topic: "Disease Identification",
+                  count: "156 questions",
+                  icon: "🦠",
+                },
+                {
+                  topic: "Irrigation Planning", 
+                  count: "124 questions",
+                  icon: "💧",
+                },
+                {
+                  topic: "Harvest Timing",
+                  count: "89 questions", 
+                  icon: "🌾",
+                },
+                {
+                  topic: "Fertilizer Advice",
+                  count: "76 questions",
+                  icon: "💊",
+                },
+              ].map((item, idx) => (
+                <div 
+                  key={idx} 
+                  className="topic-item"
+                  onClick={() => {
+                    // Handle topic click to populate input
+                    const topicQuestions = {
+                      "Disease Identification": "Help me identify a plant disease",
+                      "Irrigation Planning": "What's the best irrigation schedule?",
+                      "Harvest Timing": "When should I harvest my crops?",
+                      "Fertilizer Advice": "What fertilizer should I use?"
+                    };
+                    const question = topicQuestions[item.topic];
+                    if (question) {
+                      setInputMessage(question);
+                      setTimeout(() => {
+                        const inputElement = document.querySelector('.chat-input');
+                        if (inputElement) {
+                          inputElement.focus();
+                        }
+                      }, 0);
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="topic-icon">{item.icon}</span>
+                  <div className="topic-content">
+                    <p className="topic-name">{item.topic}</p>
+                    <p className="topic-count">{item.count}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Image Upload for Disease Detection */}
+          <div className="stats-card">
+            <h4 className="stats-title">
+              <span className="stats-icon">📷</span>
+              Disease Detection
+            </h4>
+            <div className="upload-area">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    handleDiseaseImageUpload(file, "wheat");
+                  }
+                }}
+                style={{ display: "none" }}
+                id="disease-upload"
+              />
+              <label htmlFor="disease-upload" className="upload-label">
+                <Upload size={20} />
+                <span>Upload Plant Photo</span>
+              </label>
+              <p className="upload-hint">
+                Take a clear photo of affected leaves or plants
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
