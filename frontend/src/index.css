@@ -23,7 +23,13 @@ body {
 /* Sidebar Styles */
 .sidebar {
   width: 16rem;
-  background: linear-gradient(180deg, #065f46 0%, #064e3b 100%);
+  background: linear-gradient(
+    to left,
+    /* direction: right to left */ #36454f 0%,
+    /* lighter charcoal on the right */ #232b2b 100%
+      /* darker charcoal on the left */
+  );
+
   position: static;
   inset-y: 0;
   left: 0;
@@ -120,14 +126,15 @@ body {
 }
 
 .nav-item:hover {
-  background-color: #047857;
+  background-color: #065f46;
+  box-shadow: 0 0 8px rgba(6, 95, 70, 0.6);
   color: white;
 }
 
 .nav-item.active {
-  background-color: #10b981;
+  background-color: #065f46;
   color: white;
-  border-right: 4px solid #4ade80;
+  border-right: 4px solid #232b2b;
 }
 
 /* Main Content */
