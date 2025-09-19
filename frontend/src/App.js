@@ -1,13 +1,29 @@
 import React, { useState, useEffect, useRef } from "react";
-import Map, {
+import {
+  MapContainer,
+  TileLayer,
   Marker,
   Popup,
-  Source,
-  Layer,
-  NavigationControl,
-  GeolocateControl,
-} from "react-map-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+  useMap,
+  GeoJSON,
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import {
   Home,
   User,
@@ -18,9 +34,7 @@ import {
   X,
   Cloud,
   CloudRain,
-  Sun,
   TrendingUp,
-  TrendingDown,
   AlertTriangle,
   Send,
   Upload,
@@ -31,27 +45,34 @@ import {
   CheckCircle,
   Shield,
 } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts";
 import "./index.css";
 
+// Fix Leaflet default marker icon issue
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
+  iconUrl: require("leaflet/dist/images/marker-icon.png"),
+  shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
+});
 // API Configuration
 const API_BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:5000/api";
-const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
+
+// Create custom marker icons for different types of markers
+const createCustomIcon = (color) =>
+  new L.Icon({
+    iconUrl:
+      "data:image/svg+xml;charset=utf-8," +
+      encodeURIComponent(`
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="16" cy="16" r="12" fill="${color}"/>
+      <circle cx="16" cy="16" r="14" stroke="white" stroke-width="2"/>
+    </svg>
+  `),
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32],
+  });
 
 // ...existing API helper functions...
 const api = {
@@ -237,15 +258,17 @@ const LoginForm = ({ onLogin }) => {
         if (formData.location) {
           try {
             const geocodeResponse = await fetch(
-              `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-                formData.location
-              )}.json?access_token=${MAPBOX_TOKEN}&country=IN&types=place,locality`
+              `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+                formData.location + ", India"
+              )}&format=json&limit=1`
             );
             const geocodeData = await geocodeResponse.json();
 
-            if (geocodeData.features && geocodeData.features.length > 0) {
-              const [lng, lat] = geocodeData.features[0].center;
-              coordinates = { longitude: lng, latitude: lat };
+            if (geocodeData && geocodeData.length > 0) {
+              coordinates = {
+                longitude: parseFloat(geocodeData[0].lon),
+                latitude: parseFloat(geocodeData[0].lat),
+              };
             }
           } catch (geocodeError) {
             console.error("Geocoding failed:", geocodeError);
@@ -484,6 +507,36 @@ const LoginForm = ({ onLogin }) => {
 };
 
 // Farm Map Component
+// Helper component to manage map view updates
+const MapComponent = ({ center, zoom, onViewStateChange }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    map.setView(center, zoom);
+  }, [map, center, zoom]);
+
+  useEffect(() => {
+    const handleMoveEnd = () => {
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      onViewStateChange({
+        viewState: {
+          latitude: center.lat,
+          longitude: center.lng,
+          zoom: zoom,
+        },
+      });
+    };
+
+    map.on("moveend", handleMoveEnd);
+    return () => {
+      map.off("moveend", handleMoveEnd);
+    };
+  }, [map, onViewStateChange]);
+
+  return null;
+};
+
 const FarmMap = ({ user, diseaseData, weatherData }) => {
   const [viewState, setViewState] = useState({
     longitude: 77.209, // Default to Delhi
@@ -491,26 +544,24 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
     zoom: 10,
   });
   const [selectedMarker, setSelectedMarker] = useState(null);
-  const [mapStyle, setMapStyle] = useState(
-    "mapbox://styles/mapbox/satellite-streets-v12"
-  );
+  const [mapStyle, setMapStyle] = useState("satellite");
   const mapRef = useRef();
-
-  // Geocoding function to get coordinates from location name
   const geocodeLocation = async (locationString) => {
     if (!locationString) return null;
 
     try {
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-          locationString
-        )}.json?access_token=${MAPBOX_TOKEN}&country=IN&types=place,locality`
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+          locationString + ", India"
+        )}&format=json&limit=1`
       );
       const data = await response.json();
 
-      if (data.features && data.features.length > 0) {
-        const [lng, lat] = data.features[0].center;
-        return { longitude: lng, latitude: lat };
+      if (data && data.length > 0) {
+        return {
+          longitude: parseFloat(data[0].lon),
+          latitude: parseFloat(data[0].lat),
+        };
       }
     } catch (error) {
       console.error("Geocoding error:", error);
@@ -646,31 +697,7 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
     })),
   };
 
-  // Layer style for farm boundaries
-  const farmBoundaryLayer = {
-    id: "farm-boundaries",
-    type: "fill",
-    paint: {
-      "fill-color": [
-        "case",
-        [">", ["get", "health"], 85],
-        "#10b981", // Green for healthy
-        [">", ["get", "health"], 75],
-        "#f59e0b", // Yellow for moderate
-        "#ef4444", // Red for unhealthy
-      ],
-      "fill-opacity": 0.3,
-    },
-  };
-
-  const farmBoundaryOutlineLayer = {
-    id: "farm-boundaries-outline",
-    type: "line",
-    paint: {
-      "line-color": "#ffffff",
-      "line-width": 2,
-    },
-  };
+  // Marker styling is now handled by the GeoJSON style function
 
   // Get user location if available
   useEffect(() => {
@@ -716,21 +743,17 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
         <div className="map-controls">
           <div className="map-style-selector">
             <button
-              onClick={() =>
-                setMapStyle("mapbox://styles/mapbox/satellite-streets-v12")
-              }
+              onClick={() => setMapStyle("satellite")}
               className={`style-btn ${
-                mapStyle.includes("satellite") ? "active" : ""
+                mapStyle === "satellite" ? "active" : ""
               }`}
             >
               <Satellite size={16} />
               Satellite
             </button>
             <button
-              onClick={() => setMapStyle("mapbox://styles/mapbox/streets-v12")}
-              className={`style-btn ${
-                mapStyle.includes("streets-v12") ? "active" : ""
-              }`}
+              onClick={() => setMapStyle("streets")}
+              className={`style-btn ${mapStyle === "streets" ? "active" : ""}`}
             >
               <Layers size={16} />
               Streets
@@ -740,69 +763,92 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
       </div>
 
       <div className="map-wrapper">
-        <Map
+        <MapContainer
           ref={mapRef}
-          {...viewState}
-          onMove={(evt) => setViewState(evt.viewState)}
-          mapboxAccessToken={MAPBOX_TOKEN}
+          center={[viewState.latitude, viewState.longitude]}
+          zoom={viewState.zoom}
           style={{ width: "100%", height: "100%" }}
-          mapStyle={mapStyle}
           attributionControl={false}
         >
-          {/* Farm Boundaries */}
-          <Source id="farm-boundaries" type="geojson" data={farmBoundaries}>
-            <Layer {...farmBoundaryLayer} />
-            <Layer {...farmBoundaryOutlineLayer} />
-          </Source>
+          <MapComponent
+            center={[viewState.latitude, viewState.longitude]}
+            zoom={viewState.zoom}
+            onViewStateChange={(evt) => setViewState(evt.viewState)}
+          />
+          {/* Base Tile Layer */}
+          {mapStyle === "satellite" ? (
+            <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              attribution="&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
+            />
+          ) : (
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution="&copy; OpenStreetMap contributors"
+            />
+          )}
 
+          {/* Farm Boundaries */}
+          <GeoJSON
+            data={farmBoundaries}
+            style={(feature) => ({
+              fillColor: getMarkerColor(feature.properties.health),
+              fillOpacity: 0.3,
+              color: "#ffffff",
+              weight: 2,
+            })}
+          />
           {/* Farm Location Markers */}
           {farmLocations.map((farm) => (
             <Marker
               key={farm.id}
-              longitude={farm.coordinates[0]}
-              latitude={farm.coordinates[1]}
-              anchor="bottom"
-            >
-              <div
-                className="farm-marker"
-                style={{ backgroundColor: getMarkerColor(farm.health) }}
-                onClick={() => setSelectedMarker({ type: "farm", data: farm })}
-              >
-                <MapPin size={20} color="white" />
-                <div className="marker-label">{farm.name}</div>
-              </div>
-            </Marker>
+              position={[farm.coordinates[1], farm.coordinates[0]]}
+              eventHandlers={{
+                click: () => setSelectedMarker({ type: "farm", data: farm }),
+              }}
+              icon={L.divIcon({
+                className: "farm-marker",
+                html: `
+                  <div style="background-color: ${getMarkerColor(farm.health)}">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <circle cx="12" cy="10" r="3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <div class="marker-label">${farm.name}</div>
+                  </div>
+                `,
+                iconSize: [40, 40],
+                iconAnchor: [20, 40],
+              })}
+            ></Marker>
           ))}
-
           {/* Disease Markers */}
           {diseaseMarkers.map((disease) => (
             <Marker
               key={`disease-${disease.id}`}
-              longitude={disease.coordinates[0]}
-              latitude={disease.coordinates[1]}
-              anchor="bottom"
+              position={[disease.coordinates[1], disease.coordinates[0]]}
+              icon={createCustomIcon(getDiseaseMarkerColor(disease.severity))}
+              eventHandlers={{
+                click: () =>
+                  setSelectedMarker({ type: "disease", data: disease }),
+              }}
             >
-              <div
-                className="disease-marker"
-                style={{
-                  backgroundColor: getDiseaseMarkerColor(disease.severity),
-                }}
-                onClick={() =>
-                  setSelectedMarker({ type: "disease", data: disease })
-                }
-              >
-                <AlertTriangle size={16} color="white" />
-              </div>
+              <Popup>
+                <div className="disease-marker">
+                  <AlertTriangle size={16} color="white" />
+                </div>
+              </Popup>
             </Marker>
           ))}
-
           {/* Weather Station Markers */}
           {weatherStations.map((station) => (
             <Marker
               key={`weather-${station.id}`}
-              longitude={station.coordinates[0]}
-              latitude={station.coordinates[1]}
-              anchor="bottom"
+              position={[station.coordinates[1], station.coordinates[0]]}
+              eventHandlers={{
+                click: () =>
+                  setSelectedMarker({ type: "weather", data: station }),
+              }}
             >
               <div
                 className="weather-marker"
@@ -814,13 +860,13 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
               </div>
             </Marker>
           ))}
-
           {/* Popup for selected marker */}
           {selectedMarker && (
             <Popup
-              longitude={selectedMarker.data.coordinates[0]}
-              latitude={selectedMarker.data.coordinates[1]}
-              anchor="top"
+              position={[
+                selectedMarker.data.coordinates[1],
+                selectedMarker.data.coordinates[0],
+              ]}
               onClose={() => setSelectedMarker(null)}
               className="map-popup"
             >
@@ -910,7 +956,7 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
               </div>
             </Popup>
           )}
-        </Map>
+        </MapContainer>
 
         {/* Map Legend */}
         <div className="map-legend">
@@ -1663,7 +1709,7 @@ const Dashboard = () => {
                             />
                             <XAxis dataKey="week" stroke="#666" fontSize={12} />
                             <YAxis stroke="#666" fontSize={12} />
-                            <Tooltip
+                            <RechartsTooltip
                               contentStyle={{
                                 backgroundColor: "white",
                                 border: "1px solid #ddd",
@@ -1747,7 +1793,7 @@ const Dashboard = () => {
                                 />
                               ))}
                             </Pie>
-                            <Tooltip
+                            <RechartsTooltip
                               contentStyle={{
                                 backgroundColor: "white",
                                 border: "1px solid #ddd",
@@ -1798,7 +1844,7 @@ const Dashboard = () => {
                               fontSize={12}
                             />
                             <YAxis stroke="#666" fontSize={12} />
-                            <Tooltip
+                            <RechartsTooltip
                               contentStyle={{
                                 backgroundColor: "white",
                                 border: "1px solid #ddd",

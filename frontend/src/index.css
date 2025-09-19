@@ -1654,7 +1654,7 @@ body {
   margin-top: 0.5rem;
 }
 
-/* Mapbox Map Styles */
+/* Leaflet Map Styles */
 .map-container {
   background: white;
   border-radius: 0.75rem;
@@ -1662,6 +1662,69 @@ body {
   overflow: hidden;
   height: 500px;
   position: relative;
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  font-family: inherit;
+}
+
+/* Leaflet Controls */
+.leaflet-control-container .leaflet-top,
+.leaflet-control-container .leaflet-bottom {
+  z-index: 1000;
+}
+
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.leaflet-control-zoom a {
+  background-color: white !important;
+  color: #374151 !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: #f9fafb !important;
+  color: #111827 !important;
+}
+
+/* Leaflet Markers and Popups */
+.farm-marker,
+.disease-marker,
+.weather-marker {
+  z-index: 1000;
+  position: relative;
+}
+
+.leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 1rem;
+  min-width: 200px;
+}
+
+.leaflet-popup-tip-container {
+  filter: drop-shadow(0 4px 3px rgb(0 0 0 / 0.07));
+}
+
+.leaflet-popup-close-button {
+  color: #6b7280 !important;
+  padding: 8px !important;
+  font-size: 18px !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #111827 !important;
 }
 
 .map-header {
@@ -1790,13 +1853,13 @@ body {
   transform: scale(1.1);
 }
 
-/* Map Popup */
-.map-popup .mapboxgl-popup-content {
-  padding: 0;
-  border-radius: 0.5rem;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  max-width: 300px;
+/* Map Custom Markers */
+.leaflet-marker-icon {
+  background: none;
+  border: none;
 }
+
+/* Popup styles are now handled by .leaflet-popup-content-wrapper */
 
 .popup-content {
   padding: 1rem;
@@ -1896,8 +1959,9 @@ body {
   border-radius: 0.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(4px);
-  z-index: 1;
+  z-index: 1000; /* Increased z-index to appear above Leaflet controls */
   max-width: 200px;
+  pointer-events: auto; /* Ensure legend is clickable */
 }
 
 .map-legend h4 {
