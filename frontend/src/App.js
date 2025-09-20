@@ -57,6 +57,262 @@ L.Icon.Default.mergeOptions({
 // API Configuration
 const API_BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+ feature/my-changes
+const MAPBOX_TOKEN =
+  process.env.REACT_APP_MAPBOX_TOKEN ||
+  "pk.eyJ1IjoiYmliZWtndXB0YSIsImEiOiJjbWZxbGNqcXcwcHBrMmlyMnRiN3QwazRmIn0.Bgk2LdcxNFiOOyOIJcUohA";
+
+// Check if Mapbox token is available
+const isMapboxAvailable = Boolean(MAPBOX_TOKEN && MAPBOX_TOKEN !== "undefined");
+
+// Translation object
+const translations = {
+  english: {
+    // Header
+    welcome: "Welcome back",
+    subtitle: "Managing your crops made simple and smart",
+    lastSync: "Last sync:",
+    justNow: "Just now",
+
+    // Sidebar
+    home: "Home",
+    diseaseDetection: "Disease Detection",
+    chatbot: "Chatbot",
+    diseaseTrends: "Disease Trends",
+    treatments: "Treatments",
+    profile: "Profile",
+    settings: "Settings",
+
+    // Weather
+    weather: "Weather",
+    temperature: "Temperature",
+    humidity: "Humidity",
+    rainChance: "Rain Chance",
+
+    // Disease Detection
+    cropHealth: "Crop Health",
+    overallHealth: "Overall Health",
+    growthRate: "Growth Rate",
+    totalDetected: "Total Detected",
+    thisWeek: "This Week",
+
+    // Chatbot
+    agribotAssistant: "AgriBot Assistant",
+    smartFarmingCompanion:
+      "Your smart farming companion • Always ready to help",
+    online: "Online",
+    typeMessage: "Type your message...",
+
+    // Treatments
+    treatmentRecommendations: "Treatment Recommendations",
+    aiPoweredPlans:
+      "AI-powered personalized treatment plans based on disease analysis",
+    activeTreatments: "Active Treatments",
+    avgEffectiveness: "Avg. Effectiveness",
+    allTreatments: "All Treatments",
+    highPriority: "High Priority",
+    preventive: "Preventive",
+    activeTreatment: "Active Treatment",
+
+    // Profile
+    userProfile: "User Profile",
+    logout: "Logout",
+    personalInformation: "Personal Information",
+    name: "Name",
+    email: "Email",
+    phone: "Phone",
+    notProvided: "Not provided",
+    farmInformation: "Farm Information",
+    farmName: "Farm Name",
+    location: "Location",
+    farmSize: "Farm Size",
+    soilType: "Soil Type",
+    notSpecified: "Not specified",
+
+    // Settings
+    settingsTitle: "Settings",
+    settingsSubtitle: "Customize your Vriddhi experience",
+    language: "Language",
+    selectLanguage: "Select Language",
+    theme: "Theme",
+    themeDescription: "Choose your preferred theme",
+    lightMode: "Light Mode",
+    darkMode: "Dark Mode",
+    saveSettings: "Save Settings",
+    settingsSaved: "Settings saved successfully!",
+
+    // Common
+    apply: "Apply",
+    cancel: "Cancel",
+    save: "Save",
+    edit: "Edit",
+    delete: "Delete",
+    view: "View",
+    loading: "Loading...",
+    error: "Error",
+    success: "Success",
+
+    // Stat Cards and Topics
+    popularTopics: "Popular Topics",
+    diseaseIdentification: "Disease Identification",
+    irrigationPlanning: "Irrigation Planning",
+    harvestTiming: "Harvest Timing",
+    fertilizerAdvice: "Fertilizer Advice",
+    questions: "questions",
+
+    // Wheat Card
+    currentCrop: "Current Crop",
+    cultivationInProgress:
+      "cultivation in progress. Monitor growth and follow recommended care practices.",
+    variety: "Variety",
+    plantingSeason: "Planting Season",
+    harvestTime: "Harvest Time",
+    winter: "Winter",
+    months: "months",
+    viewDetails: "View Details",
+
+    // Additional UI elements
+    uploadPlantPhoto: "Upload Plant Photo",
+    diseaseDetectionPhoto: "Take a clear photo of affected leaves or plants",
+    quickQuestions: "Quick Questions:",
+    agribotThinking: "AgriBot is thinking...",
+    askAbout: "Ask about diseases, weather, irrigation, fertilizers...",
+    pressEnter: "Press Enter",
+    send: "Send",
+    tryAsking: "Try asking:",
+    diseaseHelp: "Disease help",
+    weatherUpdate: "Weather update",
+    irrigationAdvice: "Irrigation advice",
+
+    // Topic questions
+    helpIdentifyDisease: "Help me identify a plant disease",
+    bestIrrigationSchedule: "What's the best irrigation schedule?",
+    whenHarvestCrops: "When should I harvest my crops?",
+    whatFertilizerUse: "What fertilizer should I use?",
+  },
+  hindi: {
+    // Header
+    welcome: "वापसी पर स्वागत",
+    subtitle: "आपकी फसलों का प्रबंधन सरल और स्मार्ट बनाया गया",
+    lastSync: "अंतिम सिंक:",
+    justNow: "अभी",
+
+    // Sidebar
+    home: "होम",
+    diseaseDetection: "रोग की पहचान",
+    chatbot: "चैटबॉट",
+    diseaseTrends: "रोग के रुझान",
+    treatments: "उपचार",
+    profile: "प्रोफ़ाइल",
+    settings: "सेटिंग्स",
+
+    // Weather
+    weather: "मौसम",
+    temperature: "तापमान",
+    humidity: "नमी",
+    rainChance: "बारिश की संभावना",
+
+    // Disease Detection
+    cropHealth: "फसल का स्वास्थ्य",
+    overallHealth: "समग्र स्वास्थ्य",
+    growthRate: "वृद्धि दर",
+    totalDetected: "कुल पता लगाया गया",
+    thisWeek: "इस सप्ताह",
+
+    // Chatbot
+    agribotAssistant: "कृषि सहायक",
+    smartFarmingCompanion: "आपका स्मार्ट कृषि साथी • हमेशा मदद के लिए तैयार",
+    online: "ऑनलाइन",
+    typeMessage: "अपना संदेश टाइप करें...",
+
+    // Treatments
+    treatmentRecommendations: "उपचार की सिफारिशें",
+    aiPoweredPlans:
+      "रोग विश्लेषण के आधार पर AI-संचालित व्यक्तिगत उपचार योजनाएं",
+    activeTreatments: "सक्रिय उपचार",
+    avgEffectiveness: "औसत प्रभावशीलता",
+    allTreatments: "सभी उपचार",
+    highPriority: "उच्च प्राथमिकता",
+    preventive: "निवारक",
+    activeTreatment: "सक्रिय उपचार",
+
+    // Profile
+    userProfile: "उपयोगकर्ता प्रोफ़ाइल",
+    logout: "लॉगआउट",
+    personalInformation: "व्यक्तिगत जानकारी",
+    name: "नाम",
+    email: "ईमेल",
+    phone: "फोन",
+    notProvided: "प्रदान नहीं किया गया",
+    farmInformation: "खेत की जानकारी",
+    farmName: "खेत का नाम",
+    location: "स्थान",
+    farmSize: "खेत का आकार",
+    soilType: "मिट्टी का प्रकार",
+    notSpecified: "निर्दिष्ट नहीं",
+
+    // Settings
+    settingsTitle: "सेटिंग्स",
+    settingsSubtitle: "अपने वृद्धि अनुभव को अनुकूलित करें",
+    language: "भाषा",
+    selectLanguage: "भाषा चुनें",
+    theme: "थीम",
+    themeDescription: "अपनी पसंदीदा थीम चुनें",
+    lightMode: "लाइट मोड",
+    darkMode: "डार्क मोड",
+    saveSettings: "सेटिंग्स सेव करें",
+    settingsSaved: "सेटिंग्स सफलतापूर्वक सेव हो गईं!",
+
+    // Common
+    apply: "लागू करें",
+    cancel: "रद्द करें",
+    save: "सेव करें",
+    edit: "संपादित करें",
+    delete: "हटाएं",
+    view: "देखें",
+    loading: "लोड हो रहा है...",
+    error: "त्रुटि",
+    success: "सफलता",
+
+    // Stat Cards and Topics
+    popularTopics: "लोकप्रिय विषय",
+    diseaseIdentification: "रोग की पहचान",
+    irrigationPlanning: "सिंचाई की योजना",
+    harvestTiming: "फसल की समय सीमा",
+    fertilizerAdvice: "उर्वरक की सलाह",
+    questions: "प्रश्न",
+
+    // Wheat Card
+    currentCrop: "वर्तमान फसल",
+    cultivationInProgress:
+      "की खेती प्रगति में है। वृद्धि की निगरानी करें और अनुशंसित देखभाल प्रथाओं का पालन करें।",
+    variety: "किस्म",
+    plantingSeason: "बुआई का मौसम",
+    harvestTime: "फसल का समय",
+    winter: "सर्दी",
+    months: "महीने",
+    viewDetails: "विवरण देखें",
+
+    // Additional UI elements
+    uploadPlantPhoto: "पौधे की फोटो अपलोड करें",
+    diseaseDetectionPhoto: "प्रभावित पत्तियों या पौधों की स्पष्ट तस्वीर लें",
+    quickQuestions: "त्वरित प्रश्न:",
+    agribotThinking: "कृषि सहायक सोच रहा है...",
+    askAbout: "रोग, मौसम, सिंचाई, उर्वरक के बारे में पूछें...",
+    pressEnter: "एंटर दबाएं",
+    send: "भेजें",
+    tryAsking: "पूछने की कोशिश करें:",
+    diseaseHelp: "रोग सहायता",
+    weatherUpdate: "मौसम अपडेट",
+    irrigationAdvice: "सिंचाई सलाह",
+
+    // Topic questions
+    helpIdentifyDisease: "मुझे पौधे की बीमारी पहचानने में मदद करें",
+    bestIrrigationSchedule: "सबसे अच्छा सिंचाई कार्यक्रम क्या है?",
+    whenHarvestCrops: "मुझे अपनी फसल कब काटनी चाहिए?",
+    whatFertilizerUse: "मुझे कौन सा उर्वरक उपयोग करना चाहिए?",
+  },
+};
 
 // Create custom marker icons for different types of markers
 const createCustomIcon = (color) =>
@@ -72,7 +328,7 @@ const createCustomIcon = (color) =>
     iconSize: [32, 32],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32],
-  });
+  }); main
 
 // ...existing API helper functions...
 const api = {
@@ -538,6 +794,7 @@ const MapComponent = ({ center, zoom, onViewStateChange }) => {
 };
 
 const FarmMap = ({ user, diseaseData, weatherData }) => {
+  // All hooks must be declared first, before any conditional logic
   const [viewState, setViewState] = useState({
     longitude: 77.209, // Default to Delhi
     latitude: 28.6139,
@@ -592,6 +849,56 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
 
     updateMapLocation();
   }, [user]);
+
+  // Get user location if available
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setViewState((prev) => ({
+            ...prev,
+            longitude: position.coords.longitude,
+            latitude: position.coords.latitude,
+            zoom: 12,
+          }));
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+        }
+      );
+    }
+  }, []);
+
+  // Check if Mapbox is available before rendering
+  if (!isMapboxAvailable) {
+    return (
+      <div className="map-fallback">
+        <div className="map-fallback-content">
+          <h3>🗺️ Map Currently Unavailable</h3>
+          <p>
+            Mapbox service is temporarily unavailable. Your farm data is still
+            being processed in the background.
+          </p>
+          <div className="fallback-info">
+            <div className="info-item">
+              <span className="info-icon">📍</span>
+              <span>
+                Location: {user?.farmDetails?.location?.city || "Not specified"}
+              </span>
+            </div>
+            <div className="info-item">
+              <span className="info-icon">🌾</span>
+              <span>
+                Farm Size:{" "}
+                {user?.farmDetails?.farmSize?.value || "Not specified"}{" "}
+                {user?.farmDetails?.farmSize?.unit || ""}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Get user's farm coordinates for markers
   const getUserFarmCoordinates = () => {
@@ -698,24 +1005,6 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
   };
 
   // Marker styling is now handled by the GeoJSON style function
-
-  // Get user location if available
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setViewState((prev) => ({
-            ...prev,
-            longitude: position.coords.longitude,
-            latitude: position.coords.latitude,
-          }));
-        },
-        (error) => {
-          console.log("Location access denied, using default location");
-        }
-      );
-    }
-  }, []);
 
   const getMarkerColor = (health) => {
     if (health > 85) return "#10b981"; // Green
@@ -1011,6 +1300,14 @@ const Dashboard = () => {
   // Chat UI state
   const [showQuickActions, setShowQuickActions] = useState(true);
 
+  // Settings state
+  const [language, setLanguage] = useState(
+    localStorage.getItem("vriddhi-language") || "english"
+  );
+  const [isDarkMode, setIsDarkMode] = useState(
+    localStorage.getItem("vriddhi-theme") === "dark"
+  );
+
   // Quick questions data
   const quickQuestions = [
     {
@@ -1050,6 +1347,39 @@ const Dashboard = () => {
       icon: "🐛",
     },
   ];
+
+  // Translation helper function
+  const t = (key) => {
+    return translations[language]?.[key] || translations.english[key] || key;
+  };
+
+  // Settings handlers
+  const handleLanguageChange = (newLanguage) => {
+    setLanguage(newLanguage);
+    localStorage.setItem("vriddhi-language", newLanguage);
+  };
+
+  const handleThemeToggle = () => {
+    const newTheme = !isDarkMode;
+    setIsDarkMode(newTheme);
+    localStorage.setItem("vriddhi-theme", newTheme ? "dark" : "light");
+
+    // Apply theme to document body
+    if (newTheme) {
+      document.body.classList.add("dark-theme");
+    } else {
+      document.body.classList.remove("dark-theme");
+    }
+  };
+
+  // Apply theme on component mount
+  useEffect(() => {
+    if (isDarkMode) {
+      document.body.classList.add("dark-theme");
+    } else {
+      document.body.classList.remove("dark-theme");
+    }
+  }, [isDarkMode]);
 
   // Initialize app
   useEffect(() => {
@@ -1264,37 +1594,37 @@ const Dashboard = () => {
   const sidebarItems = [
     {
       icon: Home,
-      label: "Home",
+      label: t("home"),
       active: activeSection === "home",
       section: "home",
     },
     {
       icon: User,
-      label: "Profile",
+      label: t("profile"),
       active: activeSection === "profile",
       section: "profile",
     },
     {
       icon: MessageCircle,
-      label: "AI Assistant",
+      label: t("chatbot"),
       active: activeSection === "chatbot",
       section: "chatbot",
     },
     {
       icon: TrendingUp,
-      label: "Disease Trends",
+      label: t("diseaseTrends"),
       active: activeSection === "trends",
       section: "trends",
     },
     {
       icon: Stethoscope,
-      label: "Treatments",
+      label: t("treatments"),
       active: activeSection === "treatments",
       section: "treatments",
     },
     {
       icon: Settings,
-      label: "Settings",
+      label: t("settings"),
       active: activeSection === "settings",
       section: "settings",
     },
@@ -1314,15 +1644,15 @@ const Dashboard = () => {
                         <span className="chat-emoji">🤖</span>
                       </div>
                       <div>
-                        <h3 className="chat-title">AgriBot Assistant</h3>
+                        <h3 className="chat-title">{t("agribotAssistant")}</h3>
                         <p className="chat-subtitle">
-                          Your smart farming companion • Always ready to help
+                          {t("smartFarmingCompanion")}
                         </p>
                       </div>
                     </div>
                     <div className="chat-status">
                       <div className="status-dot"></div>
-                      <span className="status-text">Online</span>
+                      <span className="status-text">{t("online")}</span>
                     </div>
                   </div>
                 </div>
@@ -1374,7 +1704,7 @@ const Dashboard = () => {
                             <div className="typing-dot"></div>
                             <div className="typing-dot"></div>
                             <span className="typing-text">
-                              AgriBot is thinking...
+                              {t("agribotThinking")}
                             </span>
                           </div>
                         </div>
@@ -1386,7 +1716,9 @@ const Dashboard = () => {
                 {/* Quick Actions */}
                 {showQuickActions && chatMessages.length === 1 && (
                   <div className="quick-actions-container">
-                    <h4 className="quick-actions-title">Quick Questions:</h4>
+                    <h4 className="quick-actions-title">
+                      {t("quickQuestions")}
+                    </h4>
                     <div className="quick-actions-grid">
                       {quickQuestions.map((question) => (
                         <button
@@ -1421,11 +1753,11 @@ const Dashboard = () => {
                             Math.min(e.target.scrollHeight, 120) + "px";
                         }}
                         onKeyPress={handleKeyPress}
-                        placeholder="Ask about diseases, weather, irrigation, fertilizers..."
+                        placeholder={t("askAbout")}
                         className="chat-input"
                       />
                       <div className="input-hint">
-                        <span>Press Enter</span>
+                        <span>{t("pressEnter")}</span>
                       </div>
                     </div>
                     <button
@@ -1434,17 +1766,17 @@ const Dashboard = () => {
                       className="send-btn"
                     >
                       <Send size={18} />
-                      <span>Send</span>
+                      <span>{t("send")}</span>
                     </button>
                   </div>
 
                   {/* Try Asking Section */}
                   <div className="input-hints">
-                    <span className="hint-label">Try asking:</span>
+                    <span className="hint-label">{t("tryAsking")}</span>
                     {[
-                      "Disease help",
-                      "Weather update",
-                      "Irrigation advice",
+                      t("diseaseHelp"),
+                      t("weatherUpdate"),
+                      t("irrigationAdvice"),
                     ].map((hint, idx) => (
                       <button
                         key={idx}
@@ -1478,28 +1810,28 @@ const Dashboard = () => {
                 <div className="stats-card">
                   <h4 className="stats-title">
                     <span className="stats-icon">🔥</span>
-                    Popular Topics
+                    {t("popularTopics")}
                   </h4>
                   <div className="topics-list">
                     {[
                       {
-                        topic: "Disease Identification",
-                        count: "156 questions",
+                        topic: t("diseaseIdentification"),
+                        count: `156 ${t("questions")}`,
                         icon: "🦠",
                       },
                       {
-                        topic: "Irrigation Planning",
-                        count: "124 questions",
+                        topic: t("irrigationPlanning"),
+                        count: `124 ${t("questions")}`,
                         icon: "💧",
                       },
                       {
-                        topic: "Harvest Timing",
-                        count: "89 questions",
+                        topic: t("harvestTiming"),
+                        count: `89 ${t("questions")}`,
                         icon: "🌾",
                       },
                       {
-                        topic: "Fertilizer Advice",
-                        count: "76 questions",
+                        topic: t("fertilizerAdvice"),
+                        count: `76 ${t("questions")}`,
                         icon: "💊",
                       },
                     ].map((item, idx) => (
@@ -1509,13 +1841,14 @@ const Dashboard = () => {
                         onClick={() => {
                           // Handle topic click to populate input
                           const topicQuestions = {
-                            "Disease Identification":
-                              "Help me identify a plant disease",
-                            "Irrigation Planning":
-                              "What's the best irrigation schedule?",
-                            "Harvest Timing": "When should I harvest my crops?",
-                            "Fertilizer Advice":
-                              "What fertilizer should I use?",
+                            [t("diseaseIdentification")]: t(
+                              "helpIdentifyDisease"
+                            ),
+                            [t("irrigationPlanning")]: t(
+                              "bestIrrigationSchedule"
+                            ),
+                            [t("harvestTiming")]: t("whenHarvestCrops"),
+                            [t("fertilizerAdvice")]: t("whatFertilizerUse"),
                           };
                           const question = topicQuestions[item.topic];
                           if (question) {
@@ -1545,7 +1878,7 @@ const Dashboard = () => {
                 <div className="stats-card">
                   <h4 className="stats-title">
                     <span className="stats-icon">📷</span>
-                    Disease Detection
+                    {t("diseaseDetection")}
                   </h4>
                   <div className="upload-area">
                     <input
@@ -1562,11 +1895,9 @@ const Dashboard = () => {
                     />
                     <label htmlFor="disease-upload" className="upload-label">
                       <Upload size={20} />
-                      <span>Upload Plant Photo</span>
+                      <span>{t("uploadPlantPhoto")}</span>
                     </label>
-                    <p className="upload-hint">
-                      Take a clear photo of affected leaves or plants
-                    </p>
+                    <p className="upload-hint">{t("diseaseDetectionPhoto")}</p>
                   </div>
                 </div>
               </div>
@@ -2357,6 +2688,189 @@ const Dashboard = () => {
           </div>
         );
 
+      case "settings":
+        return (
+          <div className="settings-container">
+            <div className="settings-header">
+              <div className="settings-header-content">
+                <div>
+                  <h2 className="settings-title">
+                    <span className="settings-icon">⚙️</span>
+                    {t("settingsTitle")}
+                  </h2>
+                  <p className="settings-subtitle">{t("settingsSubtitle")}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-content">
+              {/* Language Settings */}
+              <div className="settings-section">
+                <div className="settings-section-header">
+                  <h3 className="settings-section-title">
+                    <span className="section-icon">🌐</span>
+                    {t("language")}
+                  </h3>
+                  <p className="settings-section-description">
+                    {t("selectLanguage")}
+                  </p>
+                </div>
+                <div className="settings-section-content">
+                  <div className="language-selector">
+                    <select
+                      value={language}
+                      onChange={(e) => handleLanguageChange(e.target.value)}
+                      className="language-dropdown"
+                    >
+                      <option value="english">English</option>
+                      <option value="hindi">हिंदी (Hindi)</option>
+                    </select>
+                    <div className="language-preview">
+                      <div className="preview-text">
+                        <span className="preview-label">Preview:</span>
+                        <span className="preview-sample">
+                          {t("welcome")}, {user?.name || "User"}!
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Theme Settings */}
+              <div className="settings-section">
+                <div className="settings-section-header">
+                  <h3 className="settings-section-title">
+                    <span className="section-icon">🎨</span>
+                    {t("theme")}
+                  </h3>
+                  <p className="settings-section-description">
+                    {t("themeDescription")}
+                  </p>
+                </div>
+                <div className="settings-section-content">
+                  <div className="theme-selector">
+                    <div className="theme-options">
+                      <div
+                        className={`theme-option ${
+                          !isDarkMode ? "active" : ""
+                        }`}
+                      >
+                        <div className="theme-preview light-preview">
+                          <div className="preview-header"></div>
+                          <div className="preview-content">
+                            <div className="preview-card"></div>
+                            <div className="preview-card"></div>
+                          </div>
+                        </div>
+                        <div className="theme-option-info">
+                          <h4>{t("lightMode")}</h4>
+                          <p>Clean and bright interface</p>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`theme-option ${isDarkMode ? "active" : ""}`}
+                      >
+                        <div className="theme-preview dark-preview">
+                          <div className="preview-header"></div>
+                          <div className="preview-content">
+                            <div className="preview-card"></div>
+                            <div className="preview-card"></div>
+                          </div>
+                        </div>
+                        <div className="theme-option-info">
+                          <h4>{t("darkMode")}</h4>
+                          <p>Easy on the eyes for long sessions</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="theme-toggle-container">
+                      <label className="theme-toggle">
+                        <input
+                          type="checkbox"
+                          checked={isDarkMode}
+                          onChange={handleThemeToggle}
+                        />
+                        <span className="toggle-slider">
+                          <span className="toggle-button">
+                            {isDarkMode ? "🌙" : "☀️"}
+                          </span>
+                        </span>
+                      </label>
+                      <span className="toggle-label">
+                        {isDarkMode ? t("darkMode") : t("lightMode")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Settings */}
+              <div className="settings-section">
+                <div className="settings-section-header">
+                  <h3 className="settings-section-title">
+                    <span className="section-icon">🔔</span>
+                    Notifications
+                  </h3>
+                  <p className="settings-section-description">
+                    Manage your notification preferences
+                  </p>
+                </div>
+                <div className="settings-section-content">
+                  <div className="notification-settings">
+                    <div className="notification-item">
+                      <div className="notification-info">
+                        <h4>Disease Alerts</h4>
+                        <p>Get notified about potential disease threats</p>
+                      </div>
+                      <label className="notification-toggle">
+                        <input type="checkbox" defaultChecked />
+                        <span className="toggle-slider small"></span>
+                      </label>
+                    </div>
+
+                    <div className="notification-item">
+                      <div className="notification-info">
+                        <h4>Weather Updates</h4>
+                        <p>Receive weather forecasts and warnings</p>
+                      </div>
+                      <label className="notification-toggle">
+                        <input type="checkbox" defaultChecked />
+                        <span className="toggle-slider small"></span>
+                      </label>
+                    </div>
+
+                    <div className="notification-item">
+                      <div className="notification-info">
+                        <h4>Treatment Reminders</h4>
+                        <p>Get reminded about scheduled treatments</p>
+                      </div>
+                      <label className="notification-toggle">
+                        <input type="checkbox" defaultChecked />
+                        <span className="toggle-slider small"></span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <div className="settings-actions">
+                <button className="settings-save-btn">
+                  <span className="btn-icon">💾</span>
+                  {t("saveSettings")}
+                </button>
+                <button className="settings-reset-btn">
+                  <span className="btn-icon">🔄</span>
+                  Reset to Default
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return (
           <div className="home-container">
@@ -2369,23 +2883,27 @@ const Dashboard = () => {
                     <div className="stat-icon-container blue">
                       <CloudRain className="stat-icon-small" size={16} />
                     </div>
-                    <span className="stat-title">Weather</span>
+                    <span className="stat-title">{t("weather")}</span>
                   </div>
                   <div className="stat-items">
                     <div className="stat-row">
-                      <span className="stat-label-small">Temperature</span>
+                      <span className="stat-label-small">
+                        {t("temperature")}
+                      </span>
                       <span className="stat-value-small blue">
                         {weatherData?.temperature || 25}°C
                       </span>
                     </div>
                     <div className="stat-row">
-                      <span className="stat-label-small">Humidity</span>
+                      <span className="stat-label-small">{t("humidity")}</span>
                       <span className="stat-value-small blue">
                         {weatherData?.humidity || 65}%
                       </span>
                     </div>
                     <div className="stat-row">
-                      <span className="stat-label-small">Rain Chance</span>
+                      <span className="stat-label-small">
+                        {t("rainChance")}
+                      </span>
                       <span className="stat-value-small blue">
                         {weatherData?.forecast?.rainChance || 30}%
                       </span>
@@ -2399,15 +2917,19 @@ const Dashboard = () => {
                     <div className="stat-icon-container green">
                       <TrendingUp className="stat-icon-small" size={16} />
                     </div>
-                    <span className="stat-title">Crop Health</span>
+                    <span className="stat-title">{t("cropHealth")}</span>
                   </div>
                   <div className="stat-items">
                     <div className="stat-row">
-                      <span className="stat-label-small">Overall Health</span>
+                      <span className="stat-label-small">
+                        {t("overallHealth")}
+                      </span>
                       <span className="stat-value-small green">87%</span>
                     </div>
                     <div className="stat-row">
-                      <span className="stat-label-small">Growth Rate</span>
+                      <span className="stat-label-small">
+                        {t("growthRate")}
+                      </span>
                       <span className="stat-value-small green">85%</span>
                     </div>
                   </div>
@@ -2419,17 +2941,19 @@ const Dashboard = () => {
                     <div className="stat-icon-container red">
                       <AlertTriangle className="stat-icon-small" size={16} />
                     </div>
-                    <span className="stat-title">Disease Detection</span>
+                    <span className="stat-title">{t("diseaseDetection")}</span>
                   </div>
                   <div className="stat-items">
                     <div className="stat-row">
-                      <span className="stat-label-small">Total Detected</span>
+                      <span className="stat-label-small">
+                        {t("totalDetected")}
+                      </span>
                       <span className="stat-value-small red">
                         {userStats?.diseaseStats?.totalDetections || 0}
                       </span>
                     </div>
                     <div className="stat-row">
-                      <span className="stat-label-small">This Week</span>
+                      <span className="stat-label-small">{t("thisWeek")}</span>
                       <span className="stat-value-small orange">
                         {userStats?.diseaseStats?.thisWeek || 0}
                       </span>
@@ -2453,31 +2977,32 @@ const Dashboard = () => {
                   <div className="wheat-icon">
                     <div className="wheat-emoji">🌾</div>
                   </div>
-                  <h3 className="wheat-title">Current Crop</h3>
+                  <h3 className="wheat-title">{t("currentCrop")}</h3>
                 </div>
                 <div className="wheat-content">
                   <p className="wheat-description">
                     {user.farmDetails?.cropTypes?.[0]?.name || "Wheat"}{" "}
-                    cultivation in progress. Monitor growth and follow
-                    recommended care practices.
+                    {t("cultivationInProgress")}
                   </p>
                   <div className="wheat-details">
                     <div className="wheat-detail">
-                      <span className="detail-label">Variety</span>
+                      <span className="detail-label">{t("variety")}</span>
                       <span className="detail-value">
                         {user.farmDetails?.cropTypes?.[0]?.variety || "HD-2967"}
                       </span>
                     </div>
                     <div className="wheat-detail">
-                      <span className="detail-label">Planting Season</span>
-                      <span className="detail-value">Winter</span>
+                      <span className="detail-label">
+                        {t("plantingSeason")}
+                      </span>
+                      <span className="detail-value">{t("winter")}</span>
                     </div>
                     <div className="wheat-detail">
-                      <span className="detail-label">Harvest Time</span>
-                      <span className="detail-value">3 months</span>
+                      <span className="detail-label">{t("harvestTime")}</span>
+                      <span className="detail-value">3 {t("months")}</span>
                     </div>
                   </div>
-                  <button className="wheat-btn">View Details</button>
+                  <button className="wheat-btn">{t("viewDetails")}</button>
                 </div>
               </div>
             </div>
@@ -2529,16 +3054,16 @@ const Dashboard = () => {
                 <Menu size={20} />
               </button>
               <div>
-                <h1 className="header-title">Welcome back, {user.name}!</h1>
-                <p className="header-subtitle">
-                  Managing your crops made simple and smart
-                </p>
+                <h1 className="header-title">
+                  {t("welcome")}, {user.name}!
+                </h1>
+                <p className="header-subtitle">{t("subtitle")}</p>
               </div>
             </div>
             <div className="header-right">
               <div className="sync-info">
-                <span className="sync-label">Last sync:</span>
-                <span className="sync-time">Just now</span>
+                <span className="sync-label">{t("lastSync")}</span>
+                <span className="sync-time">{t("justNow")}</span>
               </div>
             </div>
           </div>
