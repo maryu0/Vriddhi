@@ -57,7 +57,7 @@ L.Icon.Default.mergeOptions({
 // API Configuration
 const API_BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:5000/api";
- feature/my-changes
+
 const MAPBOX_TOKEN =
   process.env.REACT_APP_MAPBOX_TOKEN ||
   "pk.eyJ1IjoiYmliZWtndXB0YSIsImEiOiJjbWZxbGNqcXcwcHBrMmlyMnRiN3QwazRmIn0.Bgk2LdcxNFiOOyOIJcUohA";
@@ -328,7 +328,7 @@ const createCustomIcon = (color) =>
     iconSize: [32, 32],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32],
-  }); main
+  });
 
 // ...existing API helper functions...
 const api = {
