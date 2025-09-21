@@ -21,8 +21,10 @@
   --modal-bg: #ffffff;
   --input-bg: #ffffff;
   --button-bg: #ffffff;
-  --sidebar-bg: linear-gradient(180deg, #065f46 0%, #064e3b 100%);
+  --sidebar-bg: linear-gradient(to right, #232b2b 0%, #36454f 100%);
 }
+
+/* background: linear-gradient(to right, #232b2b 0%, #36454F, 100%); */
 
 /* Dark Theme Colors */
 body.dark-theme {
@@ -307,13 +309,8 @@ button {
 /* Sidebar Styles */
 .sidebar {
   width: 16rem;
-  background: linear-gradient(
-    to left,
-    /* direction: right to left */ #36454f 0%,
-    /* lighter charcoal on the right */ #232b2b 100%
-      /* darker charcoal on the left */
-  );
-
+  /* background: linear-gradient(180deg, #065f46 0%, #064e3b 100%); */
+  background: linear-gradient(to right, #36454f 0%, #232b2b 100%);
   position: static;
   inset-y: 0;
   left: 0;
@@ -340,35 +337,45 @@ button {
   justify-content: space-between;
   height: 4rem;
   padding: 0 1.5rem;
-  background-color: #047857;
+  background-color: #03553e;
+  background: linear-gradient(180deg, #3a9d49 0%, #2e7d32 100%);
+  border-radius: 0.5rem;
 }
 
 .logo {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  background-color: transparent !important;
+  background-image: none !important;
 }
 
 .logo-icon {
-  width: 2rem;
-  height: 2rem;
-  background-color: #4ade80;
+  width: 4rem;
+  height: 4rem;
+  background-color: transparent !important;
+  background-image: none !important;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: none;
 }
 
 .logo-icon span {
-  color: #065f46;
+  color: var(--text-primary);
   font-weight: bold;
   font-size: 0.875rem;
+  background-color: transparent !important;
+  background-image: none !important;
 }
 
 .logo-text {
-  color: white;
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 1.125rem;
+  background-color: transparent !important;
+  background-image: none !important;
 }
 
 .close-btn {
@@ -410,15 +417,14 @@ button {
 }
 
 .nav-item:hover {
-  background-color: #065f46;
-  box-shadow: 0 0 8px rgba(6, 95, 70, 0.6);
+  background-color: #047857;
   color: white;
 }
 
 .nav-item.active {
-  background-color: #065f46;
+  background-color: #10b981;
   color: white;
-  border-right: 4px solid #232b2b;
+  border-right: 4px solid #4ade80;
 }
 
 /* Main Content */
@@ -1956,7 +1962,7 @@ body.dark-theme .send-btn span {
   margin-top: 0.5rem;
 }
 
-/* Leaflet Map Styles */
+/* Mapbox Map Styles */
 .map-container {
   background: var(--card-bg);
   border-radius: 0.75rem;
@@ -1965,69 +1971,6 @@ body.dark-theme .send-btn span {
   overflow: hidden;
   height: 500px;
   position: relative;
-}
-
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-  font-family: inherit;
-}
-
-/* Leaflet Controls */
-.leaflet-control-container .leaflet-top,
-.leaflet-control-container .leaflet-bottom {
-  z-index: 1000;
-}
-
-.leaflet-control-zoom {
-  border: none !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-}
-
-.leaflet-control-zoom a {
-  background-color: white !important;
-  color: #374151 !important;
-  border: 1px solid #e5e7eb !important;
-}
-
-.leaflet-control-zoom a:hover {
-  background-color: #f9fafb !important;
-  color: #111827 !important;
-}
-
-/* Leaflet Markers and Popups */
-.farm-marker,
-.disease-marker,
-.weather-marker {
-  z-index: 1000;
-  position: relative;
-}
-
-.leaflet-popup-content-wrapper {
-  padding: 0;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.leaflet-popup-content {
-  margin: 0;
-  padding: 1rem;
-  min-width: 200px;
-}
-
-.leaflet-popup-tip-container {
-  filter: drop-shadow(0 4px 3px rgb(0 0 0 / 0.07));
-}
-
-.leaflet-popup-close-button {
-  color: #6b7280 !important;
-  padding: 8px !important;
-  font-size: 18px !important;
-}
-
-.leaflet-popup-close-button:hover {
-  color: #111827 !important;
 }
 
 .map-header {
@@ -2156,13 +2099,13 @@ body.dark-theme .send-btn span {
   transform: scale(1.1);
 }
 
-/* Map Custom Markers */
-.leaflet-marker-icon {
-  background: none;
-  border: none;
+/* Map Popup */
+.map-popup .mapboxgl-popup-content {
+  padding: 0;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  max-width: 300px;
 }
-
-/* Popup styles are now handled by .leaflet-popup-content-wrapper */
 
 .popup-content {
   padding: 1rem;
@@ -2262,9 +2205,8 @@ body.dark-theme .send-btn span {
   border-radius: 0.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(4px);
-  z-index: 1000; /* Increased z-index to appear above Leaflet controls */
+  z-index: 1;
   max-width: 200px;
-  pointer-events: auto; /* Ensure legend is clickable */
 }
 
 .map-legend h4 {
@@ -4343,4 +4285,169 @@ body.dark-theme .urgency-badge.scheduled {
   background: linear-gradient(135deg, #60a5fa, #3b82f6) !important;
   color: #ffffff !important;
   box-shadow: 0 3px 12px rgba(96, 165, 250, 0.4) !important;
+}
+
+/* Updated Sidebar Styles - Fixed Position for All Screen Sizes */
+.sidebar {
+  width: 16rem;
+  background: linear-gradient(to right, #36454f 0%, #232b2b 100%);
+  position: fixed; /* Changed from static to fixed */
+  top: 0; /* Add top positioning */
+  left: 0; /* Add left positioning */
+  height: 100vh; /* Full height of viewport */
+  z-index: 50;
+  transform: translateX(0);
+  transition: transform 0.3s ease-in-out;
+  overflow-y: auto; /* Allow scrolling within sidebar if content overflows */
+}
+
+/* Mobile sidebar behavior - only hide on mobile when not open */
+@media (max-width: 1023px) {
+  .sidebar {
+    transform: translateX(-100%); /* Hide by default on mobile */
+  }
+
+  .sidebar.open {
+    transform: translateX(0); /* Show when open on mobile */
+  }
+}
+
+/* Update main content to account for fixed sidebar */
+.main-content {
+  flex: 1;
+  margin-left: 16rem; /* Add left margin equal to sidebar width */
+  transition: margin-left 0.3s ease-in-out; /* Smooth transition */
+}
+
+/* On mobile, remove the left margin when sidebar is hidden */
+@media (max-width: 1023px) {
+  .main-content {
+    margin-left: 0; /* No margin on mobile */
+  }
+}
+
+/* Update app layout to accommodate fixed sidebar */
+.app {
+  display: flex;
+  height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Optional: Add a backdrop for mobile when sidebar is open */
+@media (max-width: 1023px) {
+  .sidebar.open::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 16rem; /* Start after sidebar width */
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: -1; /* Behind sidebar but above content */
+  }
+}
+
+/* Ensure sidebar content doesn't get cut off */
+.sidebar-nav {
+  margin-top: 2rem;
+  padding-bottom: 2rem; /* Add some bottom padding */
+}
+
+/* Optional: Add smooth scrolling to sidebar */
+.sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Sidebar icon colors - white in both light and dark modes */
+.sidebar {
+  color: #ffffff; /* Ensure sidebar text is white */
+}
+
+/* Make all sidebar icons white */
+.sidebar .nav-item svg,
+.sidebar .nav-item path {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Ensure nav item text and icons are white */
+.nav-item {
+  color: #ffffff !important;
+}
+
+.nav-item svg {
+  color: #ffffff !important;
+}
+
+/* Active state - keep white icons but with different background */
+.nav-item.active {
+  background-color: #10b981;
+  color: #ffffff !important;
+  border-right: 4px solid #4ade80;
+}
+
+.nav-item.active svg {
+  color: #ffffff !important;
+}
+
+/* Hover state - keep white icons */
+.nav-item:hover {
+  background-color: #047857;
+  color: #ffffff !important;
+}
+
+.nav-item:hover svg {
+  color: #ffffff !important;
+}
+
+/* Remove this section as we're handling logo styles in the main logo section */
+
+/* Close button icon */
+.close-btn {
+  color: #ffffff !important;
+}
+
+.close-btn svg {
+  color: #ffffff !important;
+}
+
+.close-btn:hover {
+  color: #bbf7d0 !important;
+}
+
+/* Ensure all sidebar elements have white text/icons */
+.sidebar * {
+  color: #ffffff !important;
+}
+
+/* Override any specific icon colors that might be set */
+.sidebar svg,
+.sidebar path,
+.sidebar circle,
+.sidebar rect,
+.sidebar line,
+.sidebar polyline,
+.sidebar polygon {
+  stroke: #ffffff !important;
+  fill: #ffffff !important;
 }

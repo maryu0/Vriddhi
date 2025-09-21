@@ -1,29 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  MapContainer,
-  TileLayer,
+import Map, {
   Marker,
   Popup,
-  useMap,
-  GeoJSON,
-} from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts";
+  Source,
+  Layer,
+  NavigationControl,
+  GeolocateControl,
+} from "react-map-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import logoImage from "./Gemini_Generated_Image_whxd33whxd33whxd-removebg-preview.png";
 import {
   Home,
   User,
@@ -34,7 +19,9 @@ import {
   X,
   Cloud,
   CloudRain,
+  Sun,
   TrendingUp,
+  TrendingDown,
   AlertTriangle,
   Send,
   Upload,
@@ -45,19 +32,26 @@ import {
   CheckCircle,
   Shield,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import "./index.css";
 
-// Fix Leaflet default marker icon issue
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
-  iconUrl: require("leaflet/dist/images/marker-icon.png"),
-  shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
-});
 // API Configuration
 const API_BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:5000/api";
-
 const MAPBOX_TOKEN =
   process.env.REACT_APP_MAPBOX_TOKEN ||
   "pk.eyJ1IjoiYmliZWtndXB0YSIsImEiOiJjbWZxbGNqcXcwcHBrMmlyMnRiN3QwazRmIn0.Bgk2LdcxNFiOOyOIJcUohA";
@@ -314,22 +308,6 @@ const translations = {
   },
 };
 
-// Create custom marker icons for different types of markers
-const createCustomIcon = (color) =>
-  new L.Icon({
-    iconUrl:
-      "data:image/svg+xml;charset=utf-8," +
-      encodeURIComponent(`
-    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="16" cy="16" r="12" fill="${color}"/>
-      <circle cx="16" cy="16" r="14" stroke="white" stroke-width="2"/>
-    </svg>
-  `),
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
-  });
-
 // ...existing API helper functions...
 const api = {
   // Auth endpoints
@@ -440,6 +418,150 @@ const api = {
   },
 };
 
+// Default chatbot responses for common keywords
+const defaultChatbotResponses = {
+  disease: {
+    keywords: [
+      "disease",
+      "infection",
+      "sick",
+      "problem",
+      "issue",
+      "spot",
+      "yellow",
+      "brown",
+      "wilting",
+    ],
+    responses: [
+      "I can help you identify plant diseases! Please describe what you're seeing - are there spots on leaves, discoloration, or wilting? You can also upload a photo for better diagnosis.",
+      "Plant diseases can be tricky. Tell me more about the symptoms you're observing. What part of the plant is affected and what does the damage look like?",
+      "Let me help you with disease identification. Common signs include leaf spots, yellowing, wilting, or unusual growth. Can you describe what you're seeing?",
+    ],
+  },
+  weather: {
+    keywords: [
+      "weather",
+      "rain",
+      "temperature",
+      "humidity",
+      "forecast",
+      "sunny",
+      "cloudy",
+      "wind",
+    ],
+    responses: [
+      "Current weather conditions show temperature at 25°C with 65% humidity. There's a 30% chance of rain today. Would you like more detailed forecast information?",
+      "Weather plays a crucial role in crop health. Based on current conditions, I recommend monitoring for humidity-related diseases and adjusting irrigation accordingly.",
+      "Today's weather is favorable for most farming activities. Temperature and humidity levels are within optimal ranges for your wheat crop.",
+    ],
+  },
+  irrigation: {
+    keywords: [
+      "water",
+      "irrigation",
+      "watering",
+      "drought",
+      "dry",
+      "moisture",
+      "sprinkler",
+    ],
+    responses: [
+      "For wheat crops, irrigation timing is crucial. Water deeply but less frequently, typically every 7-10 days depending on soil type and weather conditions.",
+      "Proper irrigation prevents both drought stress and root rot. Check soil moisture at 6-8 inches depth - water when it feels dry at this level.",
+      "Over-watering can cause more problems than under-watering. Look for signs like yellowing leaves or fungal growth which might indicate excessive moisture.",
+    ],
+  },
+  fertilizer: {
+    keywords: [
+      "fertilizer",
+      "nutrients",
+      "nitrogen",
+      "phosphorus",
+      "potassium",
+      "npk",
+      "organic",
+    ],
+    responses: [
+      "For wheat, use a balanced NPK fertilizer (12-12-12) at planting, followed by nitrogen booster during tillering stage. Organic options include compost and well-aged manure.",
+      "Nutrient deficiency shows up as yellowing leaves (nitrogen), purple tints (phosphorus), or brown leaf edges (potassium). Soil testing helps determine exact needs.",
+      "Apply fertilizer based on soil test results. Generally, wheat needs more nitrogen during early growth and less during grain filling to avoid lodging.",
+    ],
+  },
+  pest: {
+    keywords: [
+      "pest",
+      "insect",
+      "bug",
+      "worm",
+      "aphid",
+      "caterpillar",
+      "fly",
+      "beetle",
+    ],
+    responses: [
+      "Common wheat pests include aphids, armyworms, and Hessian fly. Early detection is key - check plants regularly and look for chewed leaves, sticky honeydew, or visible insects.",
+      "Integrated pest management combines biological controls, resistant varieties, and targeted pesticides. Always identify the pest correctly before choosing treatment.",
+      "Natural predators like ladybugs and parasitic wasps help control many pests. Avoid broad-spectrum pesticides that harm beneficial insects.",
+    ],
+  },
+  harvest: {
+    keywords: [
+      "harvest",
+      "harvesting",
+      "ready",
+      "mature",
+      "grain",
+      "yield",
+      "cutting",
+    ],
+    responses: [
+      "Wheat is ready for harvest when grains are hard and golden, with moisture content around 14%. Test a few grains by biting - they should be firm, not soft.",
+      "Harvest timing affects both yield and quality. Too early results in shriveled grains, too late increases shattering losses and weather damage risk.",
+      "Plan harvest for dry weather conditions when possible. Early morning harvesting can reduce grain loss from shattering in very dry conditions.",
+    ],
+  },
+  farming: {
+    keywords: [
+      "farming",
+      "agriculture",
+      "crop",
+      "field",
+      "soil",
+      "cultivation",
+      "growth",
+    ],
+    responses: [
+      "Modern farming combines traditional knowledge with technology. Focus on soil health, proper timing, and sustainable practices for long-term success.",
+      "Successful farming requires attention to soil quality, crop rotation, pest management, and market conditions. What specific aspect would you like to discuss?",
+      "Each crop has unique requirements. Understanding your soil type, climate, and local conditions helps make better farming decisions.",
+    ],
+  },
+  greeting: {
+    keywords: ["hello", "hi", "hey", "good morning", "good evening", "namaste"],
+    responses: [
+      "Hello! I'm your agricultural assistant. I can help with crop diseases, weather advice, irrigation guidance, and farming best practices. What would you like to know?",
+      "Hi there! I'm here to help with your farming questions. Whether it's about diseases, irrigation, fertilizers, or general crop care - just ask!",
+      "Welcome! I'm your smart farming companion. I can assist with disease identification, treatment recommendations, weather updates, and agricultural advice.",
+    ],
+  },
+};
+
+// Function to find matching response based on keywords
+const findDefaultResponse = (userMessage) => {
+  const messageLower = userMessage.toLowerCase();
+
+  for (const [category, data] of Object.entries(defaultChatbotResponses)) {
+    for (const keyword of data.keywords) {
+      if (messageLower.includes(keyword)) {
+        const responses = data.responses;
+        return responses[Math.floor(Math.random() * responses.length)];
+      }
+    }
+  }
+
+  return "I'm here to help with your agricultural questions! You can ask me about crop diseases, irrigation, fertilizers, weather, pest control, or general farming advice. What would you like to know more about?";
+};
+
 // Login Component (same as before)
 const LoginForm = ({ onLogin }) => {
   const [formData, setFormData] = useState({
@@ -514,17 +636,15 @@ const LoginForm = ({ onLogin }) => {
         if (formData.location) {
           try {
             const geocodeResponse = await fetch(
-              `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-                formData.location + ", India"
-              )}&format=json&limit=1`
+              `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+                formData.location
+              )}.json?access_token=${MAPBOX_TOKEN}&country=IN&types=place,locality`
             );
             const geocodeData = await geocodeResponse.json();
 
-            if (geocodeData && geocodeData.length > 0) {
-              coordinates = {
-                longitude: parseFloat(geocodeData[0].lon),
-                latitude: parseFloat(geocodeData[0].lat),
-              };
+            if (geocodeData.features && geocodeData.features.length > 0) {
+              const [lng, lat] = geocodeData.features[0].center;
+              coordinates = { longitude: lng, latitude: lat };
             }
           } catch (geocodeError) {
             console.error("Geocoding failed:", geocodeError);
@@ -606,7 +726,10 @@ const LoginForm = ({ onLogin }) => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1>🌾 Vriddhi</h1>
+          <h1>
+            {" "}
+            <b>Vriddhi</b>
+          </h1>
           <h2>{isRegistering ? "Create Account" : "Welcome Back"}</h2>
         </div>
 
@@ -763,36 +886,6 @@ const LoginForm = ({ onLogin }) => {
 };
 
 // Farm Map Component
-// Helper component to manage map view updates
-const MapComponent = ({ center, zoom, onViewStateChange }) => {
-  const map = useMap();
-
-  useEffect(() => {
-    map.setView(center, zoom);
-  }, [map, center, zoom]);
-
-  useEffect(() => {
-    const handleMoveEnd = () => {
-      const center = map.getCenter();
-      const zoom = map.getZoom();
-      onViewStateChange({
-        viewState: {
-          latitude: center.lat,
-          longitude: center.lng,
-          zoom: zoom,
-        },
-      });
-    };
-
-    map.on("moveend", handleMoveEnd);
-    return () => {
-      map.off("moveend", handleMoveEnd);
-    };
-  }, [map, onViewStateChange]);
-
-  return null;
-};
-
 const FarmMap = ({ user, diseaseData, weatherData }) => {
   // All hooks must be declared first, before any conditional logic
   const [viewState, setViewState] = useState({
@@ -801,24 +894,26 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
     zoom: 10,
   });
   const [selectedMarker, setSelectedMarker] = useState(null);
-  const [mapStyle, setMapStyle] = useState("satellite");
+  const [mapStyle, setMapStyle] = useState(
+    "mapbox://styles/mapbox/satellite-streets-v12"
+  );
   const mapRef = useRef();
+
+  // Geocoding function to get coordinates from location name
   const geocodeLocation = async (locationString) => {
     if (!locationString) return null;
 
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-          locationString + ", India"
-        )}&format=json&limit=1`
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+          locationString
+        )}.json?access_token=${MAPBOX_TOKEN}&country=IN&types=place,locality`
       );
       const data = await response.json();
 
-      if (data && data.length > 0) {
-        return {
-          longitude: parseFloat(data[0].lon),
-          latitude: parseFloat(data[0].lat),
-        };
+      if (data.features && data.features.length > 0) {
+        const [lng, lat] = data.features[0].center;
+        return { longitude: lng, latitude: lat };
       }
     } catch (error) {
       console.error("Geocoding error:", error);
@@ -1004,7 +1099,31 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
     })),
   };
 
-  // Marker styling is now handled by the GeoJSON style function
+  // Layer style for farm boundaries
+  const farmBoundaryLayer = {
+    id: "farm-boundaries",
+    type: "fill",
+    paint: {
+      "fill-color": [
+        "case",
+        [">", ["get", "health"], 85],
+        "#10b981", // Green for healthy
+        [">", ["get", "health"], 75],
+        "#f59e0b", // Yellow for moderate
+        "#ef4444", // Red for unhealthy
+      ],
+      "fill-opacity": 0.3,
+    },
+  };
+
+  const farmBoundaryOutlineLayer = {
+    id: "farm-boundaries-outline",
+    type: "line",
+    paint: {
+      "line-color": "#ffffff",
+      "line-width": 2,
+    },
+  };
 
   const getMarkerColor = (health) => {
     if (health > 85) return "#10b981"; // Green
@@ -1032,17 +1151,21 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
         <div className="map-controls">
           <div className="map-style-selector">
             <button
-              onClick={() => setMapStyle("satellite")}
+              onClick={() =>
+                setMapStyle("mapbox://styles/mapbox/satellite-streets-v12")
+              }
               className={`style-btn ${
-                mapStyle === "satellite" ? "active" : ""
+                mapStyle.includes("satellite") ? "active" : ""
               }`}
             >
               <Satellite size={16} />
               Satellite
             </button>
             <button
-              onClick={() => setMapStyle("streets")}
-              className={`style-btn ${mapStyle === "streets" ? "active" : ""}`}
+              onClick={() => setMapStyle("mapbox://styles/mapbox/streets-v12")}
+              className={`style-btn ${
+                mapStyle.includes("streets-v12") ? "active" : ""
+              }`}
             >
               <Layers size={16} />
               Streets
@@ -1052,92 +1175,69 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
       </div>
 
       <div className="map-wrapper">
-        <MapContainer
+        <Map
           ref={mapRef}
-          center={[viewState.latitude, viewState.longitude]}
-          zoom={viewState.zoom}
+          {...viewState}
+          onMove={(evt) => setViewState(evt.viewState)}
+          mapboxAccessToken={MAPBOX_TOKEN}
           style={{ width: "100%", height: "100%" }}
+          mapStyle={mapStyle}
           attributionControl={false}
         >
-          <MapComponent
-            center={[viewState.latitude, viewState.longitude]}
-            zoom={viewState.zoom}
-            onViewStateChange={(evt) => setViewState(evt.viewState)}
-          />
-          {/* Base Tile Layer */}
-          {mapStyle === "satellite" ? (
-            <TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              attribution="&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community"
-            />
-          ) : (
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution="&copy; OpenStreetMap contributors"
-            />
-          )}
-
           {/* Farm Boundaries */}
-          <GeoJSON
-            data={farmBoundaries}
-            style={(feature) => ({
-              fillColor: getMarkerColor(feature.properties.health),
-              fillOpacity: 0.3,
-              color: "#ffffff",
-              weight: 2,
-            })}
-          />
+          <Source id="farm-boundaries" type="geojson" data={farmBoundaries}>
+            <Layer {...farmBoundaryLayer} />
+            <Layer {...farmBoundaryOutlineLayer} />
+          </Source>
+
           {/* Farm Location Markers */}
           {farmLocations.map((farm) => (
             <Marker
               key={farm.id}
-              position={[farm.coordinates[1], farm.coordinates[0]]}
-              eventHandlers={{
-                click: () => setSelectedMarker({ type: "farm", data: farm }),
-              }}
-              icon={L.divIcon({
-                className: "farm-marker",
-                html: `
-                  <div style="background-color: ${getMarkerColor(farm.health)}">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <circle cx="12" cy="10" r="3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <div class="marker-label">${farm.name}</div>
-                  </div>
-                `,
-                iconSize: [40, 40],
-                iconAnchor: [20, 40],
-              })}
-            ></Marker>
+              longitude={farm.coordinates[0]}
+              latitude={farm.coordinates[1]}
+              anchor="bottom"
+            >
+              <div
+                className="farm-marker"
+                style={{ backgroundColor: getMarkerColor(farm.health) }}
+                onClick={() => setSelectedMarker({ type: "farm", data: farm })}
+              >
+                <MapPin size={20} color="white" />
+                <div className="marker-label">{farm.name}</div>
+              </div>
+            </Marker>
           ))}
+
           {/* Disease Markers */}
           {diseaseMarkers.map((disease) => (
             <Marker
               key={`disease-${disease.id}`}
-              position={[disease.coordinates[1], disease.coordinates[0]]}
-              icon={createCustomIcon(getDiseaseMarkerColor(disease.severity))}
-              eventHandlers={{
-                click: () =>
-                  setSelectedMarker({ type: "disease", data: disease }),
-              }}
+              longitude={disease.coordinates[0]}
+              latitude={disease.coordinates[1]}
+              anchor="bottom"
             >
-              <Popup>
-                <div className="disease-marker">
-                  <AlertTriangle size={16} color="white" />
-                </div>
-              </Popup>
+              <div
+                className="disease-marker"
+                style={{
+                  backgroundColor: getDiseaseMarkerColor(disease.severity),
+                }}
+                onClick={() =>
+                  setSelectedMarker({ type: "disease", data: disease })
+                }
+              >
+                <AlertTriangle size={16} color="white" />
+              </div>
             </Marker>
           ))}
+
           {/* Weather Station Markers */}
           {weatherStations.map((station) => (
             <Marker
               key={`weather-${station.id}`}
-              position={[station.coordinates[1], station.coordinates[0]]}
-              eventHandlers={{
-                click: () =>
-                  setSelectedMarker({ type: "weather", data: station }),
-              }}
+              longitude={station.coordinates[0]}
+              latitude={station.coordinates[1]}
+              anchor="bottom"
             >
               <div
                 className="weather-marker"
@@ -1149,13 +1249,13 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
               </div>
             </Marker>
           ))}
+
           {/* Popup for selected marker */}
           {selectedMarker && (
             <Popup
-              position={[
-                selectedMarker.data.coordinates[1],
-                selectedMarker.data.coordinates[0],
-              ]}
+              longitude={selectedMarker.data.coordinates[0]}
+              latitude={selectedMarker.data.coordinates[1]}
+              anchor="top"
               onClose={() => setSelectedMarker(null)}
               className="map-popup"
             >
@@ -1245,7 +1345,7 @@ const FarmMap = ({ user, diseaseData, weatherData }) => {
               </div>
             </Popup>
           )}
-        </MapContainer>
+        </Map>
 
         {/* Map Legend */}
         <div className="map-legend">
@@ -1477,13 +1577,19 @@ const Dashboard = () => {
         throw new Error(result.message);
       }
     } catch (error) {
-      const errorResponse = {
+      // If API fails, use default response based on keywords
+      console.log("API failed, using default response");
+
+      const defaultResponse = findDefaultResponse(currentMessage);
+
+      const botResponse = {
         id: Date.now() + 1,
         type: "bot",
-        message: "Sorry, I'm having trouble connecting. Please try again.",
+        message: defaultResponse,
         timestamp: new Date(),
       };
-      setChatMessages((prev) => [...prev, errorResponse]);
+
+      setChatMessages((prev) => [...prev, botResponse]);
     } finally {
       setIsTyping(false);
     }
@@ -2040,7 +2146,7 @@ const Dashboard = () => {
                             />
                             <XAxis dataKey="week" stroke="#666" fontSize={12} />
                             <YAxis stroke="#666" fontSize={12} />
-                            <RechartsTooltip
+                            <Tooltip
                               contentStyle={{
                                 backgroundColor: "white",
                                 border: "1px solid #ddd",
@@ -2124,7 +2230,7 @@ const Dashboard = () => {
                                 />
                               ))}
                             </Pie>
-                            <RechartsTooltip
+                            <Tooltip
                               contentStyle={{
                                 backgroundColor: "white",
                                 border: "1px solid #ddd",
@@ -2175,7 +2281,7 @@ const Dashboard = () => {
                               fontSize={12}
                             />
                             <YAxis stroke="#666" fontSize={12} />
-                            <RechartsTooltip
+                            <Tooltip
                               contentStyle={{
                                 backgroundColor: "white",
                                 border: "1px solid #ddd",
@@ -3018,7 +3124,13 @@ const Dashboard = () => {
         <div className="sidebar-header">
           <div className="logo">
             <div className="logo-icon">
-              <span>V</span>
+              <span>
+                <img
+                  src={logoImage}
+                  alt="Vriddhi Logo"
+                  className="logo-image"
+                />
+              </span>
             </div>
             <span className="logo-text">Vriddhi</span>
           </div>
